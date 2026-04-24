@@ -18,7 +18,7 @@ if (existsSync(localApiDotnet)) {
 }
 
 const result = spawnSync(dotnetCommand, process.argv.slice(2), {
-  cwd: repoRoot,
+  cwd: process.cwd(),
   stdio: "inherit",
 });
 
