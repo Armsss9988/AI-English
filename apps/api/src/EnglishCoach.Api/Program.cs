@@ -306,4 +306,5 @@ static Dictionary<string, string[]> ValidateRequest<T>(T request)
 }
 
 internal sealed record HealthResponse(string Status);
+internal sealed record CompleteReviewRequest(string ReviewItemId, int Quality);
 public partial class Program;

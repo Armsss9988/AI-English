@@ -69,5 +69,6 @@ public sealed class EnsureReviewItemExistsUseCaseTests
         }
 
         public DateTimeOffset UtcNow { get; }
+        public DateOnly Today => DateOnly.FromDateTime(UtcNow.UtcDateTime);
     }
 }

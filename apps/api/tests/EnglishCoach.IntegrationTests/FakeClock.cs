@@ -10,4 +10,5 @@ internal sealed class FakeClock : IClock
     }
 
     public DateTimeOffset UtcNow { get; }
+    public DateOnly Today => DateOnly.FromDateTime(UtcNow.UtcDateTime);
 }
