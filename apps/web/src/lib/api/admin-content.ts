@@ -1,31 +1,18 @@
 import { AdminPhrase, AdminScenario, UpsertPhraseRequest, UpsertScenarioRequest } from '@english-coach/contracts';
-
-const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
-
-const MOCK_ADMIN_PHRASES: AdminPhrase[] = [
-  { id: 'p1', content: 'Could you please clarify...', meaning: 'Yêu cầu làm rõ...', category: 'Meetings', difficulty: 'Beginner', status: 'published' },
-];
-
-const MOCK_ADMIN_SCENARIOS: AdminScenario[] = [
-  { id: 's1', title: 'Daily Standup', description: 'Briefly explain your status.', difficulty: 'Beginner', category: 'General', status: 'published' },
-];
+import { apiClient } from '../apiClient';
 
 export const getAdminPhrases = async (): Promise<AdminPhrase[]> => {
-  await delay(500);
-  return [...MOCK_ADMIN_PHRASES];
+  return apiClient.get<AdminPhrase[]>('/admin/content/phrases');
 };
 
 export const getAdminScenarios = async (): Promise<AdminScenario[]> => {
-  await delay(500);
-  return [...MOCK_ADMIN_SCENARIOS];
+  return apiClient.get<AdminScenario[]>('/admin/content/scenarios');
 };
 
 export const upsertPhrase = async (data: UpsertPhraseRequest): Promise<void> => {
-  await delay(1000);
-  console.log('Upserted phrase:', data);
+  return apiClient.post<void>('/admin/content/phrases', data);
 };
 
 export const upsertScenario = async (data: UpsertScenarioRequest): Promise<void> => {
-  await delay(1000);
-  console.log('Upserted scenario:', data);
+  return apiClient.post<void>('/admin/content/scenarios', data);
 };
