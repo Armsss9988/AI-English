@@ -9,8 +9,11 @@ export interface UserProfile {
 }
 
 export interface UpdateProfileRequest {
-  role: string;
+  role: "dev" | "qa" | "ba" | "pm" | "support" | "other";
   timezone: string;
   currentLevel: EnglishLevel;
   targetUseCase: string;
+  displayName?: string;
+  nativeLanguage?: string;
+  targetTimelineWeeks?: number;
 }

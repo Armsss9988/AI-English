@@ -28,7 +28,7 @@ export default function SpeakingPage() {
         </p>
       </header>
 
-      <SpeakingDrill drillId="d1" />
+      <SpeakingDrill drillId="11111111-1111-1111-1111-111111111111" />
     </main>
   );
 }

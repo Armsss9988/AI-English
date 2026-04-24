@@ -1,29 +1,31 @@
 import {
-  RoleplaySession,
-  RoleplayTurn,
+  StartRoleplayResponse,
   RecordTurnRequest,
+  RecordTurnResponse,
+  RoleplaySessionResponse,
 } from "@english-coach/contracts";
 import { apiClient } from "../apiClient";
 
 export const startRoleplay = async (
   scenarioId: string
-): Promise<RoleplaySession> => {
-  return apiClient.post<RoleplaySession>(`/roleplay-sessions/start`, {
+): Promise<StartRoleplayResponse> => {
+  return apiClient.post<StartRoleplayResponse>(`/me/roleplay/start`, {
     scenarioId,
   });
 };
 
 export const recordTurn = async (
+  sessionId: string,
   data: RecordTurnRequest
-): Promise<RoleplayTurn> => {
-  return apiClient.post<RoleplayTurn>(`/roleplay-sessions/turns`, data);
+): Promise<RecordTurnResponse> => {
+  return apiClient.post<RecordTurnResponse>(`/me/roleplay/${sessionId}/turn`, data);
 };
 
 export const finalizeRoleplay = async (
   sessionId: string
-): Promise<RoleplaySession> => {
-  return apiClient.post<RoleplaySession>(
-    `/roleplay-sessions/${sessionId}/finalize`,
+): Promise<RoleplaySessionResponse> => {
+  return apiClient.post<RoleplaySessionResponse>(
+    `/me/roleplay/${sessionId}/finalize`,
     {}
   );
 };

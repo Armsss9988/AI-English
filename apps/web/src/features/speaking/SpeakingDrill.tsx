@@ -21,41 +21,36 @@ export const SpeakingDrill: React.FC<{ drillId: string }> = ({ drillId }) => {
     return <div className={styles.loading}>Loading drill...</div>;
   if (!drill) return <div>Drill not found.</div>;
 
-  const attempt = mutation.data;
+  const feedback = mutation.data;
 
-  if (mutation.isSuccess && attempt?.feedback) {
+  if (mutation.isSuccess && feedback) {
     return (
       <div className={styles.feedbackContainer}>
         <div className={styles.feedbackHeader}>
-          <div className={styles.scoreCircle}>
-            <span className={styles.score}>
-              {attempt.feedback.overallScore}
-            </span>
-            <span className={styles.scoreLabel}>Score</span>
-          </div>
           <div className={styles.overallComments}>
             <h3>AI Feedback</h3>
-            <p>{attempt.feedback.overallComments}</p>
+            <p>{feedback.retryPrompt}</p>
           </div>
         </div>
 
         <div className={styles.feedbackSection}>
-          <h4>Mistakes & Corrections</h4>
+          <h4>Top Mistakes</h4>
           <div className={styles.mistakeList}>
-            {attempt.feedback.mistakes.map((m, i) => (
-              <div key={i} className={styles.mistakeItem}>
-                <div className={styles.original}>{m.original}</div>
-                <div className={styles.correction}>→ {m.correction}</div>
-                <div className={styles.explanation}>{m.explanation}</div>
-              </div>
-            ))}
+             <p>{feedback.topMistakes}</p>
           </div>
         </div>
 
         <div className={styles.feedbackSection}>
           <h4>Recommended Answer</h4>
           <div className={styles.improvedAnswer}>
-            {attempt.feedback.improvedAnswer}
+            {feedback.improvedAnswer}
+          </div>
+        </div>
+
+        <div className={styles.feedbackSection}>
+          <h4>Phrases to Review</h4>
+          <div className={styles.improvedAnswer}>
+            {feedback.phrasesToReview}
           </div>
         </div>
 
@@ -101,7 +96,7 @@ export const SpeakingDrill: React.FC<{ drillId: string }> = ({ drillId }) => {
         />
         <Button
           size="lg"
-          onClick={() => mutation.mutate({ drillId, transcript })}
+          onClick={() => mutation.mutate({ contentItemId: drillId, initialTranscript: transcript })}
           isLoading={mutation.isPending}
           disabled={!transcript.trim()}
           className={styles.submitBtn}

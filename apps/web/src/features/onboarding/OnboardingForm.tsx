@@ -3,10 +3,20 @@
 import React from "react";
 import { useForm } from "react-hook-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { UpdateProfileRequest, EnglishLevel } from "@english-coach/contracts";
 import { Button, Input, Select } from "@english-coach/ui";
 import { updateProfile } from "@/lib/api/identity";
 import styles from "./onboarding.module.css";
+
+const ROLES: { value: UpdateProfileRequest["role"]; label: string }[] = [
+  { value: "dev", label: "Developer (Frontend/Backend/Fullstack)" },
+  { value: "qa", label: "QA / Tester / Automation" },
+  { value: "ba", label: "Business Analyst" },
+  { value: "pm", label: "Project Manager / Product Owner" },
+  { value: "support", label: "Technical Support / IT" },
+  { value: "other", label: "Other Role" },
+];
 
 const ENGLISH_LEVELS: { value: EnglishLevel; label: string }[] = [
   { value: "A1", label: "A1 - Beginner" },
@@ -18,6 +28,7 @@ const ENGLISH_LEVELS: { value: EnglishLevel; label: string }[] = [
 ];
 
 export const OnboardingForm: React.FC = () => {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const {
     register,
@@ -25,7 +36,7 @@ export const OnboardingForm: React.FC = () => {
     formState: { errors },
   } = useForm<UpdateProfileRequest>({
     defaultValues: {
-      role: "",
+      role: "dev",
       timezone: "UTC+7",
       currentLevel: "B1",
       targetUseCase: "",
@@ -36,7 +47,7 @@ export const OnboardingForm: React.FC = () => {
     mutationFn: updateProfile,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
-      // In a real app, we might redirect here
+      router.push("/today");
     },
   });
 
@@ -54,9 +65,9 @@ export const OnboardingForm: React.FC = () => {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className={styles.form}>
-        <Input
-          label="What is your professional role?"
-          placeholder="e.g. Senior Frontend Developer"
+        <Select
+          label="Professional Role"
+          options={ROLES}
           error={errors.role?.message}
           {...register("role", { required: "Role is required" })}
         />

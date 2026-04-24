@@ -22,7 +22,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<EnglishCoachDbContext>(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("EnglishCoach")
-        ?? "Host=localhost;Port=5432;Database=englishcoach_dev;Username=postgres;Password=postgres";
+        ?? "Host=127.0.0.1;Port=9999;Database=englishcoach_dev;Username=postgres;Password=postgres";
 
     options.UseNpgsql(connectionString);
 });
@@ -264,11 +264,14 @@ app.MapPost("/me/reviews/{reviewItemId}/complete", async (
 .WithName("CompleteReviewItem")
 .WithOpenApi();
 
+var defaultPhraseId = "11111111-1111-1111-1111-111111111111";
+var defaultScenarioId = "22222222-2222-2222-2222-222222222222";
+
 app.MapGet("/learning-content/phrases", () => Results.Ok(new[]
 {
     new
     {
-        id = "p1",
+        id = defaultPhraseId,
         content = "Let's touch base on this.",
         meaning = "Discuss this topic together.",
         category = "Meetings",
@@ -281,7 +284,7 @@ app.MapGet("/learning-content/scenarios", () => Results.Ok(new[]
 {
     new
     {
-        id = "s1",
+        id = defaultScenarioId,
         title = "Client Interview",
         goal = "Introduce a project and clarify expectations.",
         category = "Client Communication",
@@ -295,7 +298,7 @@ app.MapGet("/srs-reviews/due", () => Results.Ok(new[]
     new
     {
         id = "r1",
-        phraseId = "p1",
+        phraseId = defaultPhraseId,
         content = "Clarify expectations",
         meaning = "Make expectations explicit.",
         masteryLevel = 1
@@ -414,6 +417,51 @@ adminGroup.MapGet("/content/scenarios", () => Results.Ok(new[]
         status = "draft"
     }
 }));
+
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<EnglishCoach.Infrastructure.Persistence.EnglishCoachDbContext>();
+    
+    // Seed phrase if missing
+    var phraseId = "11111111-1111-1111-1111-111111111111";
+    if (!dbContext.Phrases.Any(p => p.Id == phraseId))
+    {
+        var phrase = EnglishCoach.Domain.Curriculum.Phrase.Create(
+            phraseId,
+            "Let's touch base on this.",
+            "Discuss this topic together.",
+            EnglishCoach.Domain.Curriculum.CommunicationFunction.Standup,
+            EnglishCoach.Domain.Curriculum.ContentLevel.Core,
+            "Let's touch base on this project next week."
+        );
+        phrase.SubmitForReview();
+        phrase.Publish();
+        dbContext.Phrases.Add(phrase);
+    }
+
+    // Seed scenario if missing
+    var scenarioId = "22222222-2222-2222-2222-222222222222";
+    if (!dbContext.RoleplayScenarios.Any(s => s.Id == scenarioId))
+    {
+        var scenario = EnglishCoach.Domain.Curriculum.RoleplayScenario.Create(
+            scenarioId,
+            "Client Interview",
+            "Introduce a project and clarify expectations.",
+            "Developer",
+            "Client stakeholder",
+            "Introduce a project and clarify expectations.",
+            new[] { "Greeting", "Project Timeline" },
+            new[] { phraseId },
+            new[] { "Polite greeting", "Clear explanation" },
+            3
+        );
+        scenario.SubmitForReview();
+        scenario.Publish();
+        dbContext.RoleplayScenarios.Add(scenario);
+    }
+    
+    dbContext.SaveChanges();
+}
 
 app.Run();
 

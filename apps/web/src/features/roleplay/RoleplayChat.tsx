@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { RoleplayTurn, RoleplaySession } from "@english-coach/contracts";
+import { RoleplayTurn, RoleplaySessionResponse } from "@english-coach/contracts";
 import { Button } from "@english-coach/ui";
 import {
   recordTurn,
@@ -15,50 +15,82 @@ export const RoleplayChat: React.FC<{ scenarioId: string }> = ({
   scenarioId,
 }) => {
   const [input, setInput] = useState("");
-  const [session, setSession] = useState<RoleplaySession | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [scenarioTitle, setScenarioTitle] = useState<string>("");
+  const [turns, setTurns] = useState<RoleplayTurn[]>([]);
+  const [finalSession, setFinalSession] = useState<RoleplaySessionResponse | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    startRoleplay(scenarioId).then(setSession);
+    startRoleplay(scenarioId).then((res) => {
+      setSessionId(res.sessionId);
+      setScenarioTitle(res.scenarioTitle);
+      setTurns([
+        {
+          id: Date.now().toString(),
+          role: "ai",
+          content: res.initialMessage,
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+    });
   }, [scenarioId]);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [session?.turns]);
+  }, [turns]);
 
   const turnMutation = useMutation({
-    mutationFn: recordTurn,
-    onSuccess: (aiTurn) => {
-      if (session) {
-        // The learner turn was already added in the mock logic or we add it here
-        // For the mock, it adds both.
-        startRoleplay(scenarioId).then(setSession); // Refresh session from mock
-      }
+    mutationFn: ({ sid, content }: { sid: string; content: string }) =>
+      recordTurn(sid, { learnerMessage: content }),
+    onSuccess: (res) => {
+      // Add the AI response turn
+      setTurns((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          role: "ai",
+          content: res.clientMessage,
+          timestamp: new Date().toISOString(),
+        },
+      ]);
     },
   });
 
   const finalizeMutation = useMutation({
     mutationFn: finalizeRoleplay,
-    onSuccess: setSession,
+    onSuccess: (res) => setFinalSession(res),
   });
 
   const handleSend = () => {
-    if (!input.trim() || !session) return;
+    if (!input.trim() || !sessionId) return;
     const currentInput = input;
     setInput("");
-    turnMutation.mutate({ sessionId: session.id, content: currentInput });
+
+    // Optimistically add user turn
+    setTurns((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        role: "learner",
+        content: currentInput,
+        timestamp: new Date().toISOString(),
+      },
+    ]);
+
+    turnMutation.mutate({ sid: sessionId, content: currentInput });
   };
 
-  if (!session)
+  if (!sessionId)
     return <div className={styles.loading}>Entering scenario...</div>;
 
-  if (session.status === "completed") {
+  if (finalSession) {
     return (
       <div className={styles.summaryCard}>
         <h2 className={styles.summaryTitle}>Session Complete</h2>
-        <div className={styles.summaryContent}>{session.summary}</div>
+        <div className={styles.summaryContent}>{finalSession.summary}</div>
         <Button onClick={() => window.location.reload()}>
           Try Another Scenario
         </Button>
@@ -69,11 +101,11 @@ export const RoleplayChat: React.FC<{ scenarioId: string }> = ({
   return (
     <div className={styles.chatContainer}>
       <header className={styles.chatHeader}>
-        <h3>{session.scenarioTitle}</h3>
+        <h3>{scenarioTitle}</h3>
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => finalizeMutation.mutate(session.id)}
+          onClick={() => finalizeMutation.mutate(sessionId)}
           isLoading={finalizeMutation.isPending}
         >
           Finish Session
@@ -81,7 +113,7 @@ export const RoleplayChat: React.FC<{ scenarioId: string }> = ({
       </header>
 
       <div className={styles.messageList} ref={scrollRef}>
-        {session.turns.map((turn) => (
+        {turns.map((turn) => (
           <div
             key={turn.id}
             className={`${styles.message} ${styles[turn.role]}`}
@@ -118,3 +150,4 @@ export const RoleplayChat: React.FC<{ scenarioId: string }> = ({
     </div>
   );
 };
+

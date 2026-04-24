@@ -8,7 +8,7 @@ public sealed class EnglishCoachDesignTimeDbContextFactory : IDesignTimeDbContex
     public EnglishCoachDbContext CreateDbContext(string[] args)
     {
         var optionsBuilder = new DbContextOptionsBuilder<EnglishCoachDbContext>();
-        optionsBuilder.UseNpgsql("Host=localhost;Port=5432;Database=englishcoach_dev;Username=postgres;Password=postgres");
+        optionsBuilder.UseNpgsql("Host=127.0.0.1;Port=9999;Database=englishcoach_dev;Username=postgres;Password=postgres");
 
         return new EnglishCoachDbContext(optionsBuilder.Options);
     }

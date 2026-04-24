@@ -1,6 +1,6 @@
 namespace EnglishCoach.Contracts.Roleplay;
 
-public record StartRoleplayRequest(Guid ScenarioId);
+public record StartRoleplayRequest(string ScenarioId);
 
 public record StartRoleplayResponse(
     Guid SessionId,

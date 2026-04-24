@@ -31,7 +31,7 @@ public sealed class StartRoleplaySessionUseCase
             throw new InvalidOperationException("Scenario not found or not published.");
         }
 
-        var sessionId = Guid.NewGuid().ToString("N");
+        var sessionId = Guid.NewGuid().ToString();
         var session = RoleplaySession.Create(
             sessionId,
             learnerId,
