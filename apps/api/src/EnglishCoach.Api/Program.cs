@@ -29,6 +29,16 @@ builder.Services.AddScoped<GetDueReviewItemsUseCase>();
 builder.Services.AddScoped<CompleteReviewItemUseCase>();
 builder.Services.AddSingleton<IClock, SystemClock>();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -36,8 +46,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+else
+{
+    app.UseHttpsRedirection();
+}
 
-app.UseHttpsRedirection();
+app.UseCors("AllowAll");
 
 app.MapGet("/health", () =>
 {
@@ -142,6 +156,124 @@ app.MapPost("/me/reviews/{reviewItemId}/complete", async (
 })
 .WithName("CompleteReviewItem")
 .WithOpenApi();
+
+app.MapGet("/learning-content/phrases", () => Results.Ok(new[]
+{
+    new
+    {
+        id = "p1",
+        content = "Let's touch base on this.",
+        meaning = "Discuss this topic together.",
+        category = "Meetings",
+        difficulty = "Intermediate",
+        function = "Meetings"
+    }
+}));
+
+app.MapGet("/learning-content/scenarios", () => Results.Ok(new[]
+{
+    new
+    {
+        id = "s1",
+        title = "Client Interview",
+        goal = "Introduce a project and clarify expectations.",
+        category = "Client Communication",
+        difficulty = "Advanced",
+        persona = "Client stakeholder"
+    }
+}));
+
+app.MapGet("/srs-reviews/due", () => Results.Ok(new[]
+{
+    new
+    {
+        id = "r1",
+        phraseId = "p1",
+        content = "Clarify expectations",
+        meaning = "Make expectations explicit.",
+        masteryLevel = 1
+    }
+}));
+
+app.MapPost("/srs-reviews/complete", (CompleteReviewRequest request) => Results.Ok());
+
+app.MapGet("/progress/daily-mission", () => Results.Ok(new
+{
+    date = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd"),
+    missions = new[]
+    {
+        new
+        {
+            id = "m1",
+            type = "review",
+            title = "Complete 5 reviews",
+            description = "Review due phrases for today.",
+            isCompleted = false,
+            count = 5
+        }
+    }
+}));
+
+app.MapGet("/progress/readiness", () => Results.Ok(new
+{
+    overallScore = 75,
+    date = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd"),
+    version = "v1",
+    trend = "improving",
+    capabilities = new[]
+    {
+        new
+        {
+            area = "Grammar",
+            score = 80,
+            explanation = "Consistent sentence structure in meeting phrases."
+        }
+    }
+}));
+
+app.MapGet("/error-notebook/entries", () => Results.Ok(new[]
+{
+    new
+    {
+        id = "e1",
+        pattern = "wait for",
+        original = "I wait your response.",
+        corrected = "I wait for your response.",
+        explanation = "Use 'for' after 'wait' when naming the thing expected.",
+        category = "Grammar",
+        recurrenceCount = 1,
+        isArchived = false,
+        lastSeenAt = DateTimeOffset.UtcNow.ToString("O")
+    }
+}));
+
+app.MapGet("/admin/content/phrases", () => Results.Ok(new[]
+{
+    new
+    {
+        id = "ap1",
+        content = "Draft phrase",
+        meaning = "A draft phrase for admin review.",
+        category = "Meetings",
+        difficulty = "Beginner",
+        function = "Meetings",
+        status = "draft"
+    }
+}));
+
+app.MapGet("/admin/content/scenarios", () => Results.Ok(new[]
+{
+    new
+    {
+        id = "as1",
+        title = "Draft scenario",
+        goal = "Practice a client update.",
+        category = "Client Communication",
+        difficulty = "Intermediate",
+        persona = "Project manager",
+        status = "draft"
+    }
+}));
 
 app.Run();
 

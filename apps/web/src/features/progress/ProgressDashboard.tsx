@@ -8,7 +8,7 @@ import styles from "./progress.module.css";
 export const ProgressDashboard: React.FC = () => {
   const { data: snapshot, isLoading } = useQuery({
     queryKey: ["readiness"],
-    queryFn: getReadinessSnapshot,
+    queryFn: () => getReadinessSnapshot(),
   });
 
   if (isLoading)

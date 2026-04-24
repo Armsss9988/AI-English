@@ -8,7 +8,7 @@ import styles from "./curriculum.module.css";
 export const ScenarioBrowser: React.FC = () => {
   const { data: scenarios, isLoading } = useQuery({
     queryKey: ["scenarios"],
-    queryFn: getScenarios,
+    queryFn: () => getScenarios(),
   });
 
   if (isLoading) {

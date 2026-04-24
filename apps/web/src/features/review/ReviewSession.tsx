@@ -14,7 +14,7 @@ export const ReviewSession: React.FC = () => {
 
   const { data: queue, isLoading } = useQuery({
     queryKey: ["due-reviews"],
-    queryFn: getDueReviews,
+    queryFn: () => getDueReviews(),
   });
 
   const mutation = useMutation({

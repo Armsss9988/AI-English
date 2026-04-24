@@ -16,7 +16,7 @@ const TYPE_TO_ROUTE: Record<string, string> = {
 export const MissionList: React.FC = () => {
   const { data: mission, isLoading } = useQuery({
     queryKey: ["daily-mission"],
-    queryFn: getDailyMission,
+    queryFn: () => getDailyMission(),
   });
 
   if (isLoading)

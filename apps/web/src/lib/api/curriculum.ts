@@ -2,7 +2,8 @@ import { Phrase, RoleplayScenario } from "@english-coach/contracts";
 import { apiClient } from "../apiClient";
 
 export const getPhrases = async (category?: string): Promise<Phrase[]> => {
-  const query = category ? `?category=${category}` : "";
+  const query =
+    typeof category === "string" && category ? `?category=${category}` : "";
   return apiClient.get<Phrase[]>(`/learning-content/phrases${query}`);
 };
 

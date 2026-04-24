@@ -19,11 +19,11 @@ export const ContentManager: React.FC = () => {
 
   const phrasesQuery = useQuery({
     queryKey: ["admin-phrases"],
-    queryFn: getAdminPhrases,
+    queryFn: () => getAdminPhrases(),
   });
   const scenariosQuery = useQuery({
     queryKey: ["admin-scenarios"],
-    queryFn: getAdminScenarios,
+    queryFn: () => getAdminScenarios(),
   });
 
   const phraseMutation = useMutation({
