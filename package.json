@@ -3,16 +3,19 @@
   "private": true,
   "packageManager": "pnpm@10.18.2",
   "scripts": {
-    "build": "turbo run build && node packages/tooling/scripts/run-dotnet.mjs build apps/api/EnglishCoach.sln --nologo -maxcpucount:1 -p:UseSharedCompilation=false",
+    "build": "turbo run build && node apps/api/scripts/run-dotnet.mjs build apps/api/EnglishCoach.sln --nologo -maxcpucount:1 -p:UseSharedCompilation=false",
     "dev": "concurrently -n web,api -c cyan,green \"pnpm dev:web\" \"pnpm dev:api\"",
-    "dev:api": "node packages/tooling/scripts/run-dotnet.mjs run --project apps/api/src/EnglishCoach.Api/EnglishCoach.Api.csproj",
+    "dev:api": "node apps/api/scripts/run-dotnet.mjs run --project apps/api/src/EnglishCoach.Api/EnglishCoach.Api.csproj",
     "dev:web": "pnpm --dir apps/web dev",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
     "lint": "turbo run lint",
-    "test": "turbo run test && node packages/tooling/scripts/run-dotnet.mjs test apps/api/EnglishCoach.sln --nologo -maxcpucount:1 -p:UseSharedCompilation=false",
-    "typecheck": "turbo run typecheck && node packages/tooling/scripts/run-dotnet.mjs build apps/api/EnglishCoach.sln --nologo -maxcpucount:1 -p:UseSharedCompilation=false"
+    "test": "turbo run test && node apps/api/scripts/run-dotnet.mjs restore apps/api/EnglishCoach.sln --nologo -maxcpucount:1 && node apps/api/scripts/run-dotnet.mjs build apps/api/EnglishCoach.sln --no-restore --nologo -maxcpucount:1 -p:UseSharedCompilation=false && node apps/api/scripts/run-dotnet.mjs test apps/api/EnglishCoach.sln --no-build --no-restore --nologo -maxcpucount:1 -p:UseSharedCompilation=false",
+    "typecheck": "turbo run typecheck && node apps/api/scripts/run-dotnet.mjs build apps/api/EnglishCoach.sln --nologo -maxcpucount:1 -p:UseSharedCompilation=false"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
+    "prettier": "^3.6.2",
     "turbo": "^2.5.8",
     "typescript": "^5.9.3"
   }

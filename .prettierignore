@@ -1,0 +1,9 @@
+.dotnet
+.git
+.next
+.turbo
+bin
+dist
+node_modules
+obj
+pnpm-lock.yaml

@@ -1,6 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.4" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EnglishCoach.Contracts\EnglishCoach.Contracts.csproj" />
     <ProjectReference Include="..\EnglishCoach.Application\EnglishCoach.Application.csproj" />
     <ProjectReference Include="..\EnglishCoach.Domain\EnglishCoach.Domain.csproj" />
     <ProjectReference Include="..\EnglishCoach.SharedKernel\EnglishCoach.SharedKernel.csproj" />

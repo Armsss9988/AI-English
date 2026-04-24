@@ -48,7 +48,7 @@ export const OnboardingForm: React.FC = () => {
     <div className={styles.formCard}>
       <div className={styles.header}>
         <h1 className={styles.title}>Welcome to English Coach</h1>
-        <p className={styles.subtitle}>Let's personalize your learning experience</p>
+        <p className={styles.subtitle}>Let&apos;s personalize your learning experience</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className={styles.form}>
