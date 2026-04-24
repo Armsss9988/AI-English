@@ -6,14 +6,18 @@ import { fileURLToPath } from "node:url";
 const scriptDir = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = join(scriptDir, "..", "..", "..");
 const dotnetExe = process.platform === "win32" ? "dotnet.exe" : "dotnet";
-const localDotnet = join(repoRoot, ".dotnet", dotnetExe);
+const localApiDotnet = join(repoRoot, "apps", "api", ".dotnet", dotnetExe);
+const localRootDotnet = join(repoRoot, ".dotnet", dotnetExe);
 
-if (!existsSync(localDotnet)) {
-  console.error(`Missing local dotnet executable at ${localDotnet}`);
-  process.exit(1);
+let dotnetCommand = "dotnet";
+
+if (existsSync(localApiDotnet)) {
+  dotnetCommand = localApiDotnet;
+} else if (existsSync(localRootDotnet)) {
+  dotnetCommand = localRootDotnet;
 }
 
-const result = spawnSync(localDotnet, process.argv.slice(2), {
+const result = spawnSync(dotnetCommand, process.argv.slice(2), {
   cwd: repoRoot,
   stdio: "inherit",
 });

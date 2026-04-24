@@ -16,10 +16,11 @@ const requiredPaths = [
   "apps/api/src/EnglishCoach.Infrastructure/EnglishCoach.Infrastructure.csproj",
   "apps/api/src/EnglishCoach.Contracts/EnglishCoach.Contracts.csproj",
   "apps/api/src/EnglishCoach.SharedKernel/EnglishCoach.SharedKernel.csproj",
+  "apps/api/scripts/run-dotnet.mjs",
   "packages/contracts/src/index.ts",
   "packages/shared-kernel/src/index.ts",
   "packages/ui/src/index.ts",
-  "packages/tooling/scripts/run-dotnet.mjs"
+  "packages/tooling/test/foundation.test.mjs"
 ];
 
 test("foundation scaffold creates the required monorepo paths", () => {
