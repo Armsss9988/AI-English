@@ -1,4 +1,8 @@
-export type NotebookCategory = 'Grammar' | 'Vocabulary' | 'Pronunciation' | 'Business Context';
+export type NotebookCategory =
+  | "Grammar"
+  | "Vocabulary"
+  | "Pronunciation"
+  | "Business Context";
 
 export interface NotebookEntry {
   id: string;

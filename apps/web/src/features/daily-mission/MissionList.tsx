@@ -1,33 +1,34 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
-import { getDailyMission } from '@/lib/api/daily-mission';
-import styles from './mission.module.css';
+import React from "react";
+import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+import { getDailyMission } from "@/lib/api/daily-mission";
+import styles from "./mission.module.css";
 
 const TYPE_TO_ROUTE: Record<string, string> = {
-  review: '/review',
-  speaking: '/speaking',
-  roleplay: '/roleplay',
-  retry: '/review/retry',
+  review: "/review",
+  speaking: "/speaking",
+  roleplay: "/roleplay",
+  retry: "/review/retry",
 };
 
 export const MissionList: React.FC = () => {
   const { data: mission, isLoading } = useQuery({
-    queryKey: ['daily-mission'],
+    queryKey: ["daily-mission"],
     queryFn: getDailyMission,
   });
 
-  if (isLoading) return <div className={styles.loading}>Loading your missions...</div>;
+  if (isLoading)
+    return <div className={styles.loading}>Loading your missions...</div>;
 
   return (
     <div className={styles.grid}>
       {mission?.missions.map((item) => (
-        <Link 
-          key={item.id} 
-          href={TYPE_TO_ROUTE[item.type] || '#'}
-          className={`${styles.card} ${item.isCompleted ? styles.completed : ''}`}
+        <Link
+          key={item.id}
+          href={TYPE_TO_ROUTE[item.type] || "#"}
+          className={`${styles.card} ${item.isCompleted ? styles.completed : ""}`}
         >
           <div className={styles.cardHeader}>
             <span className={`${styles.icon} ${styles[item.type]}`}>

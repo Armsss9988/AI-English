@@ -1,6 +1,6 @@
 export interface RoleplayTurn {
   id: string;
-  role: 'learner' | 'ai';
+  role: "learner" | "ai";
   content: string;
   timestamp: string;
 }
@@ -10,7 +10,7 @@ export interface RoleplaySession {
   scenarioId: string;
   scenarioTitle: string;
   turns: RoleplayTurn[];
-  status: 'active' | 'completed';
+  status: "active" | "completed";
   summary?: string; // Coaching summary after finalization
 }
 

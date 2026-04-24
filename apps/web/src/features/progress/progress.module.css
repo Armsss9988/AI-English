@@ -59,11 +59,18 @@
   font-size: 1.25rem;
 }
 
-.improving { color: #4ade80; }
-.stable { color: #facc15; }
-.declining { color: #f87171; }
+.improving {
+  color: #4ade80;
+}
+.stable {
+  color: #facc15;
+}
+.declining {
+  color: #f87171;
+}
 
-.version, .date {
+.version,
+.date {
   font-size: 0.875rem;
   color: #64748b;
 }

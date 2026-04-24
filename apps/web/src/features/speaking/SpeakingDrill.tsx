@@ -1,15 +1,15 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { Button } from '@english-coach/ui';
-import { getDrillPrompt, submitAttempt } from '@/lib/api/speaking';
-import styles from './speaking.module.css';
+import React, { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Button } from "@english-coach/ui";
+import { getDrillPrompt, submitAttempt } from "@/lib/api/speaking";
+import styles from "./speaking.module.css";
 
 export const SpeakingDrill: React.FC<{ drillId: string }> = ({ drillId }) => {
-  const [transcript, setTranscript] = useState('');
+  const [transcript, setTranscript] = useState("");
   const { data: drill, isLoading: isLoadingPrompt } = useQuery({
-    queryKey: ['drill', drillId],
+    queryKey: ["drill", drillId],
     queryFn: () => getDrillPrompt(drillId),
   });
 
@@ -17,7 +17,8 @@ export const SpeakingDrill: React.FC<{ drillId: string }> = ({ drillId }) => {
     mutationFn: submitAttempt,
   });
 
-  if (isLoadingPrompt) return <div className={styles.loading}>Loading drill...</div>;
+  if (isLoadingPrompt)
+    return <div className={styles.loading}>Loading drill...</div>;
   if (!drill) return <div>Drill not found.</div>;
 
   const attempt = mutation.data;
@@ -27,7 +28,9 @@ export const SpeakingDrill: React.FC<{ drillId: string }> = ({ drillId }) => {
       <div className={styles.feedbackContainer}>
         <div className={styles.feedbackHeader}>
           <div className={styles.scoreCircle}>
-            <span className={styles.score}>{attempt.feedback.overallScore}</span>
+            <span className={styles.score}>
+              {attempt.feedback.overallScore}
+            </span>
             <span className={styles.scoreLabel}>Score</span>
           </div>
           <div className={styles.overallComments}>
@@ -51,7 +54,9 @@ export const SpeakingDrill: React.FC<{ drillId: string }> = ({ drillId }) => {
 
         <div className={styles.feedbackSection}>
           <h4>Recommended Answer</h4>
-          <div className={styles.improvedAnswer}>{attempt.feedback.improvedAnswer}</div>
+          <div className={styles.improvedAnswer}>
+            {attempt.feedback.improvedAnswer}
+          </div>
         </div>
 
         <Button onClick={() => mutation.reset()} className={styles.retryBtn}>
@@ -77,7 +82,11 @@ export const SpeakingDrill: React.FC<{ drillId: string }> = ({ drillId }) => {
         <div className={styles.phrasesBox}>
           <span className={styles.label}>Suggested Phrases</span>
           <div className={styles.phraseBadges}>
-            {drill.suggestedPhrases.map(p => <span key={p} className={styles.badge}>{p}</span>)}
+            {drill.suggestedPhrases.map((p) => (
+              <span key={p} className={styles.badge}>
+                {p}
+              </span>
+            ))}
           </div>
         </div>
       )}

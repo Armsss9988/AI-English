@@ -9,5 +9,5 @@ export interface ReadinessSnapshot {
   date: string;
   version: string;
   capabilities: CapabilityScore[];
-  trend: 'improving' | 'stable' | 'declining';
+  trend: "improving" | "stable" | "declining";
 }

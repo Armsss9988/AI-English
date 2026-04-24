@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { getPhrases } from '@/lib/api/curriculum';
-import styles from './curriculum.module.css';
+import React from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getPhrases } from "@/lib/api/curriculum";
+import styles from "./curriculum.module.css";
 
 export const PhraseBrowser: React.FC = () => {
   const { data: phrases, isLoading } = useQuery({
-    queryKey: ['phrases'],
-    queryFn: getPhrases,
+    queryKey: ["phrases"],
+    queryFn: () => getPhrases(),
   });
 
   if (isLoading) {

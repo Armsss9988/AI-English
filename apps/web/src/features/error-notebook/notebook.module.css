@@ -56,8 +56,14 @@
 }
 
 @keyframes slideIn {
-  from { opacity: 0; transform: translateX(-10px); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .entryHeader {
@@ -98,7 +104,8 @@
   margin-bottom: 24px;
 }
 
-.originalLine, .correctedLine {
+.originalLine,
+.correctedLine {
   display: flex;
   gap: 12px;
   align-items: flex-start;
@@ -134,7 +141,8 @@
   font-size: 1rem;
 }
 
-.loading, .empty {
+.loading,
+.empty {
   color: #64748b;
   text-align: center;
   padding: 40px;

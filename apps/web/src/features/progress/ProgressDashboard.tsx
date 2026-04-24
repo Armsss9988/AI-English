@@ -1,17 +1,18 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { getReadinessSnapshot } from '@/lib/api/progress';
-import styles from './progress.module.css';
+import React from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getReadinessSnapshot } from "@/lib/api/progress";
+import styles from "./progress.module.css";
 
 export const ProgressDashboard: React.FC = () => {
   const { data: snapshot, isLoading } = useQuery({
-    queryKey: ['readiness'],
+    queryKey: ["readiness"],
     queryFn: getReadinessSnapshot,
   });
 
-  if (isLoading) return <div className={styles.loading}>Analyzing your progress...</div>;
+  if (isLoading)
+    return <div className={styles.loading}>Analyzing your progress...</div>;
   if (!snapshot) return <div>No data available.</div>;
 
   return (
@@ -27,7 +28,9 @@ export const ProgressDashboard: React.FC = () => {
               {snapshot.trend.charAt(0).toUpperCase() + snapshot.trend.slice(1)}
             </span>
             <span className={styles.version}>Engine {snapshot.version}</span>
-            <span className={styles.date}>Last updated: {new Date(snapshot.date).toLocaleDateString()}</span>
+            <span className={styles.date}>
+              Last updated: {new Date(snapshot.date).toLocaleDateString()}
+            </span>
           </div>
         </div>
       </div>
@@ -42,7 +45,10 @@ export const ProgressDashboard: React.FC = () => {
                 <span className={styles.capScore}>{cap.score}%</span>
               </div>
               <div className={styles.capBar}>
-                <div className={styles.capFill} style={{ width: `${cap.score}%` }} />
+                <div
+                  className={styles.capFill}
+                  style={{ width: `${cap.score}%` }}
+                />
               </div>
               <p className={styles.capExplanation}>{cap.explanation}</p>
             </div>

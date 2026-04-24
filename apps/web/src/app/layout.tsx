@@ -14,16 +14,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body style={{ 
-        margin: 0, 
-        background: 'radial-gradient(circle at top center, #0f172a 0%, #020617 100%)', 
-        color: '#f8fafc', 
-        minHeight: '100vh',
-        fontFamily: 'system-ui, -apple-system, sans-serif'
-      }}>
+      <body
+        style={{
+          margin: 0,
+          background:
+            "radial-gradient(circle at top center, #0f172a 0%, #020617 100%)",
+          color: "#f8fafc",
+          minHeight: "100vh",
+          fontFamily: "system-ui, -apple-system, sans-serif",
+        }}
+      >
         <Providers>{children}</Providers>
       </body>
     </html>
   );
 }
-

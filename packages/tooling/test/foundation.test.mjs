@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -20,7 +20,8 @@ const requiredPaths = [
   "packages/contracts/src/index.ts",
   "packages/shared-kernel/src/index.ts",
   "packages/ui/src/index.ts",
-  "packages/tooling/test/foundation.test.mjs"
+  "packages/tooling/test/foundation.test.mjs",
+  ".github/workflows/ci.yml",
 ];
 
 test("foundation scaffold creates the required monorepo paths", () => {
@@ -30,5 +31,45 @@ test("foundation scaffold creates the required monorepo paths", () => {
       true,
       `Expected ${relativePath} to exist`
     );
+  }
+});
+
+test("root scripts expose explicit ci test lanes", () => {
+  const packageJson = JSON.parse(
+    readFileSync(join(repoRoot, "package.json"), "utf8")
+  );
+
+  for (const scriptName of [
+    "test:workspace",
+    "test:unit",
+    "test:business",
+    "test:api",
+    "test:architecture",
+    "test:schemathesis",
+    "test:ci",
+  ]) {
+    assert.equal(
+      typeof packageJson.scripts[scriptName],
+      "string",
+      `Expected package.json script ${scriptName}`
+    );
+  }
+});
+
+test("ci workflow runs required test lanes before merge", () => {
+  const workflow = readFileSync(
+    join(repoRoot, ".github", "workflows", "ci.yml"),
+    "utf8"
+  );
+
+  for (const command of [
+    "pnpm test:workspace",
+    "pnpm test:unit",
+    "pnpm test:business",
+    "pnpm test:api",
+    "pnpm test:architecture",
+    "pnpm test:schemathesis",
+  ]) {
+    assert.match(workflow, new RegExp(command.replace(":", "\\:")));
   }
 });

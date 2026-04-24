@@ -1,14 +1,20 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useRef } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { RoleplayTurn, RoleplaySession } from '@english-coach/contracts';
-import { Button } from '@english-coach/ui';
-import { recordTurn, finalizeRoleplay, startRoleplay } from '@/lib/api/roleplay';
-import styles from './roleplay.module.css';
+import React, { useState, useEffect, useRef } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { RoleplayTurn, RoleplaySession } from "@english-coach/contracts";
+import { Button } from "@english-coach/ui";
+import {
+  recordTurn,
+  finalizeRoleplay,
+  startRoleplay,
+} from "@/lib/api/roleplay";
+import styles from "./roleplay.module.css";
 
-export const RoleplayChat: React.FC<{ scenarioId: string }> = ({ scenarioId }) => {
-  const [input, setInput] = useState('');
+export const RoleplayChat: React.FC<{ scenarioId: string }> = ({
+  scenarioId,
+}) => {
+  const [input, setInput] = useState("");
   const [session, setSession] = useState<RoleplaySession | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -41,18 +47,21 @@ export const RoleplayChat: React.FC<{ scenarioId: string }> = ({ scenarioId }) =
   const handleSend = () => {
     if (!input.trim() || !session) return;
     const currentInput = input;
-    setInput('');
+    setInput("");
     turnMutation.mutate({ sessionId: session.id, content: currentInput });
   };
 
-  if (!session) return <div className={styles.loading}>Entering scenario...</div>;
+  if (!session)
+    return <div className={styles.loading}>Entering scenario...</div>;
 
-  if (session.status === 'completed') {
+  if (session.status === "completed") {
     return (
       <div className={styles.summaryCard}>
         <h2 className={styles.summaryTitle}>Session Complete</h2>
         <div className={styles.summaryContent}>{session.summary}</div>
-        <Button onClick={() => window.location.reload()}>Try Another Scenario</Button>
+        <Button onClick={() => window.location.reload()}>
+          Try Another Scenario
+        </Button>
       </div>
     );
   }
@@ -61,9 +70,9 @@ export const RoleplayChat: React.FC<{ scenarioId: string }> = ({ scenarioId }) =
     <div className={styles.chatContainer}>
       <header className={styles.chatHeader}>
         <h3>{session.scenarioTitle}</h3>
-        <Button 
-          variant="ghost" 
-          size="sm" 
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => finalizeMutation.mutate(session.id)}
           isLoading={finalizeMutation.isPending}
         >
@@ -73,8 +82,8 @@ export const RoleplayChat: React.FC<{ scenarioId: string }> = ({ scenarioId }) =
 
       <div className={styles.messageList} ref={scrollRef}>
         {session.turns.map((turn) => (
-          <div 
-            key={turn.id} 
+          <div
+            key={turn.id}
             className={`${styles.message} ${styles[turn.role]}`}
           >
             <div className={styles.messageContent}>{turn.content}</div>
@@ -95,12 +104,12 @@ export const RoleplayChat: React.FC<{ scenarioId: string }> = ({ scenarioId }) =
           placeholder="Type your response..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+          onKeyPress={(e) => e.key === "Enter" && handleSend()}
           disabled={turnMutation.isPending}
         />
-        <Button 
-          onClick={handleSend} 
-          disabled={!input.trim()} 
+        <Button
+          onClick={handleSend}
+          disabled={!input.trim()}
           isLoading={turnMutation.isPending}
         >
           Send

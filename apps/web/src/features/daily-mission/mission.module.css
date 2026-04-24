@@ -41,10 +41,22 @@
   font-size: 1.25rem;
 }
 
-.review { background: rgba(99, 102, 241, 0.1); color: #818cf8; }
-.speaking { background: rgba(34, 197, 94, 0.1); color: #4ade80; }
-.roleplay { background: rgba(234, 179, 8, 0.1); color: #facc15; }
-.retry { background: rgba(239, 68, 68, 0.1); color: #f87171; }
+.review {
+  background: rgba(99, 102, 241, 0.1);
+  color: #818cf8;
+}
+.speaking {
+  background: rgba(34, 197, 94, 0.1);
+  color: #4ade80;
+}
+.roleplay {
+  background: rgba(234, 179, 8, 0.1);
+  color: #facc15;
+}
+.retry {
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+}
 
 .checkBadge {
   background: #22c55e;

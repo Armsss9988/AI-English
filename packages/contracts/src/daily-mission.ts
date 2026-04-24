@@ -1,4 +1,4 @@
-export type MissionType = 'review' | 'speaking' | 'roleplay' | 'retry';
+export type MissionType = "review" | "speaking" | "roleplay" | "retry";
 
 export interface MissionItem {
   id: string;

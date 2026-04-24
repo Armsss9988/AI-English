@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { getScenarios } from '@/lib/api/curriculum';
-import styles from './curriculum.module.css';
+import React from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getScenarios } from "@/lib/api/curriculum";
+import styles from "./curriculum.module.css";
 
 export const ScenarioBrowser: React.FC = () => {
   const { data: scenarios, isLoading } = useQuery({
-    queryKey: ['scenarios'],
+    queryKey: ["scenarios"],
     queryFn: getScenarios,
   });
 
@@ -21,7 +21,9 @@ export const ScenarioBrowser: React.FC = () => {
         <div key={scenario.id} className={styles.scenarioCard}>
           <div className={styles.scenarioHeader}>
             <h3 className={styles.scenarioTitle}>{scenario.title}</h3>
-            <span className={`${styles.difficultyBadge} ${styles[scenario.difficulty]}`}>
+            <span
+              className={`${styles.difficultyBadge} ${styles[scenario.difficulty]}`}
+            >
               {scenario.difficulty}
             </span>
           </div>

@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { UserProfile } from '@english-coach/contracts';
-import styles from './onboarding.module.css';
+import React from "react";
+import { UserProfile } from "@english-coach/contracts";
+import styles from "./onboarding.module.css";
 
 interface ProfileSummaryProps {
   profile: UserProfile;

@@ -1,4 +1,9 @@
-export type SpeakingStatus = 'idle' | 'recording' | 'evaluating' | 'completed' | 'failed';
+export type SpeakingStatus =
+  | "idle"
+  | "recording"
+  | "evaluating"
+  | "completed"
+  | "failed";
 
 export interface SpeakingDrillPrompt {
   id: string;

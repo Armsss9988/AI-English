@@ -1,6 +1,6 @@
-import { Phrase, RoleplayScenario } from './curriculum';
+import { Phrase, RoleplayScenario } from "./curriculum";
 
-export type ContentStatus = 'draft' | 'published';
+export type ContentStatus = "draft" | "published";
 
 export interface AdminPhrase extends Phrase {
   status: ContentStatus;

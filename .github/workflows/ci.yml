@@ -33,8 +33,16 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Install Schemathesis
+        run: python -m pip install schemathesis==4.15.2
 
       - name: Check formatting
         run: pnpm format:check
@@ -45,5 +53,20 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
-      - name: Test
-        run: pnpm test
+      - name: Workspace tests
+        run: pnpm test:workspace
+
+      - name: Unit tests
+        run: pnpm test:unit
+
+      - name: Business tests
+        run: pnpm test:business
+
+      - name: API tests
+        run: pnpm test:api
+
+      - name: Architecture tests
+        run: pnpm test:architecture
+
+      - name: Schemathesis API contract test
+        run: pnpm test:schemathesis
