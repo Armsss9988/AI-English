@@ -1,0 +1,14 @@
+{
+  "name": "@english-coach/tooling",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "node -e \"console.log('tooling lint placeholder')\"",
+    "test": "node --test test/foundation.test.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}
