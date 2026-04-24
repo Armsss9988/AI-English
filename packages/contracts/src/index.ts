@@ -5,3 +5,4 @@ export * from './daily-mission';
 export * from './speaking';
 export * from './roleplay';
 export * from './notebook';
+export * from './progress';

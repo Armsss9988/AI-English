@@ -1,0 +1,140 @@
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+  width: 100%;
+}
+
+.topSection {
+  display: flex;
+  justify-content: center;
+}
+
+.readinessCard {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 40px;
+  padding: 40px 60px;
+  display: flex;
+  align-items: center;
+  gap: 48px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.scoreCircle {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: radial-gradient(circle at center, #6366f1 0%, #4f46e5 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 40px rgba(99, 102, 241, 0.5);
+}
+
+.scoreNumber {
+  font-size: 3.5rem;
+  font-weight: 800;
+  color: white;
+  line-height: 1;
+}
+
+.scoreLabel {
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 600;
+}
+
+.scoreMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.trend {
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+
+.improving { color: #4ade80; }
+.stable { color: #facc15; }
+.declining { color: #f87171; }
+
+.version, .date {
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.matrixSection h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #f8fafc;
+  margin-bottom: 24px;
+}
+
+.matrixGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 24px;
+}
+
+.capabilityCard {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 24px;
+  padding: 24px;
+  transition: all 0.3s ease;
+}
+
+.capabilityCard:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(99, 102, 241, 0.2);
+  transform: translateY(-2px);
+}
+
+.capHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.capArea {
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.capScore {
+  font-weight: 700;
+  color: #818cf8;
+}
+
+.capBar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.capFill {
+  height: 100%;
+  background: #6366f1;
+  border-radius: 3px;
+}
+
+.capExplanation {
+  font-size: 0.875rem;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+.loading {
+  color: #64748b;
+  text-align: center;
+  padding: 60px;
+}
