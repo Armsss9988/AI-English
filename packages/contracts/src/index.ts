@@ -6,3 +6,4 @@ export * from './speaking';
 export * from './roleplay';
 export * from './notebook';
 export * from './progress';
+export * from './admin';
