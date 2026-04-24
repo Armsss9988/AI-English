@@ -3,6 +3,7 @@ using System;
 using EnglishCoach.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EnglishCoach.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(EnglishCoachDbContext))]
-    partial class EnglishCoachDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260424145326_AddRoleplayModel")]
+    partial class AddRoleplayModel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -458,56 +461,6 @@ namespace EnglishCoach.Infrastructure.Persistence.Migrations
                     b.ToTable("RoleplayTurns");
                 });
 
-            modelBuilder.Entity("EnglishCoach.Domain.Speaking.SpeakingAttempt", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("text");
-
-                    b.Property<string>("AudioUrl")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("ContentItemId")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LearnerId")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("NormalizedTranscript")
-                        .IsRequired()
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)");
-
-                    b.Property<string>("RawTranscript")
-                        .IsRequired()
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)");
-
-                    b.Property<string>("State")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTimeOffset>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ContentItemId");
-
-                    b.HasIndex("LearnerId");
-
-                    b.ToTable("SpeakingAttempts");
-                });
-
             modelBuilder.Entity("EnglishCoach.Domain.Review.ReviewAttempt", b =>
                 {
                     b.HasOne("EnglishCoach.Domain.Review.ReviewItem", null)
@@ -578,48 +531,6 @@ namespace EnglishCoach.Infrastructure.Persistence.Migrations
                         .HasForeignKey("SessionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("EnglishCoach.Domain.Speaking.SpeakingAttempt", b =>
-                {
-                    b.OwnsOne("EnglishCoach.Domain.Speaking.SpeakingFeedback", "Feedback", b1 =>
-                        {
-                            b1.Property<string>("SpeakingAttemptId")
-                                .HasColumnType("text");
-
-                            b1.Property<string>("ImprovedAnswer")
-                                .IsRequired()
-                                .HasMaxLength(1000)
-                                .HasColumnType("character varying(1000)")
-                                .HasColumnName("FeedbackImprovedAnswer");
-
-                            b1.Property<string>("PhrasesToReview")
-                                .IsRequired()
-                                .HasMaxLength(1000)
-                                .HasColumnType("character varying(1000)")
-                                .HasColumnName("FeedbackPhrasesToReview");
-
-                            b1.Property<string>("RetryPrompt")
-                                .IsRequired()
-                                .HasMaxLength(1000)
-                                .HasColumnType("character varying(1000)")
-                                .HasColumnName("FeedbackRetryPrompt");
-
-                            b1.Property<string>("TopMistakes")
-                                .IsRequired()
-                                .HasMaxLength(1000)
-                                .HasColumnType("character varying(1000)")
-                                .HasColumnName("FeedbackTopMistakes");
-
-                            b1.HasKey("SpeakingAttemptId");
-
-                            b1.ToTable("SpeakingAttempts");
-
-                            b1.WithOwner()
-                                .HasForeignKey("SpeakingAttemptId");
-                        });
-
-                    b.Navigation("Feedback");
                 });
 
             modelBuilder.Entity("EnglishCoach.Domain.Roleplay.RoleplaySession", b =>

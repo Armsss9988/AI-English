@@ -4,9 +4,15 @@ using EnglishCoach.Application.Identity;
 using EnglishCoach.Application.Review;
 using EnglishCoach.Contracts.Identity;
 using EnglishCoach.Contracts.Review;
+using EnglishCoach.Application.Curriculum;
+using EnglishCoach.Application.ErrorNotebook;
+using EnglishCoach.Application.Roleplay;
+using EnglishCoach.Application.Speaking;
 using EnglishCoach.Infrastructure.Identity;
 using EnglishCoach.Infrastructure.Persistence;
 using EnglishCoach.Infrastructure.Review;
+using EnglishCoach.Infrastructure.Persistence.Repositories;
+using EnglishCoach.Infrastructure.ErrorNotebook;
 using EnglishCoach.SharedKernel.Time;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -24,9 +30,25 @@ builder.Services.AddScoped<ILearnerProfileRepository, LearnerProfileRepository>(
 builder.Services.AddScoped<GetMyProfileUseCase>();
 builder.Services.AddScoped<UpdateMyProfileUseCase>();
 builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
+builder.Services.AddScoped<IPhraseRepository, PhraseRepository>();
+builder.Services.AddScoped<IRoleplayScenarioRepository, RoleplayScenarioRepository>();
+builder.Services.AddScoped<IRoleplaySessionRepository, RoleplaySessionRepository>();
+builder.Services.AddScoped<INotebookRepository, NotebookRepository>();
+builder.Services.AddScoped<IReviewIntegrationService, ReviewIntegrationService>();
+builder.Services.AddScoped<PromoteErrorPatternUseCase>();
+builder.Services.AddScoped<GetNotebookEntriesUseCase>();
+builder.Services.AddScoped<StartRoleplaySessionUseCase>();
+builder.Services.AddScoped<RecordTurnUseCase>();
+builder.Services.AddScoped<FinalizeRoleplayUseCase>();
+builder.Services.AddScoped<ISpeakingAttemptRepository, SpeakingAttemptRepository>();
+builder.Services.AddScoped<CreateSpeakingAttemptUseCase>();
+builder.Services.AddScoped<SubmitSpeakingAttemptEvaluationUseCase>();
 builder.Services.AddScoped<EnsureReviewItemExistsUseCase>();
 builder.Services.AddScoped<GetDueReviewItemsUseCase>();
 builder.Services.AddScoped<CompleteReviewItemUseCase>();
+builder.Services.AddScoped<EnglishCoach.Application.Ports.ISpeechTranscriptionService, EnglishCoach.Infrastructure.AI.FakeAdapters.FakeTranscriptionService>();
+builder.Services.AddScoped<EnglishCoach.Application.Ports.ISpeakingFeedbackService, EnglishCoach.Infrastructure.AI.FakeAdapters.FakeFeedbackService>();
+builder.Services.AddScoped<EnglishCoach.Application.Ports.IRoleplayResponseService, EnglishCoach.Infrastructure.AI.FakeAdapters.FakeRoleplayService>();
 builder.Services.AddSingleton<IClock, SystemClock>();
 
 builder.Services.AddCors(options =>
@@ -103,6 +125,91 @@ app.MapPut("/me/profile", async (
     return Results.Ok(response);
 })
 .WithName("UpdateMyProfile")
+.WithOpenApi();
+
+app.MapPost("/me/roleplay/start", async (
+    HttpContext httpContext,
+    EnglishCoach.Contracts.Roleplay.StartRoleplayRequest request,
+    StartRoleplaySessionUseCase useCase,
+    CancellationToken cancellationToken) =>
+{
+    var userId = RequireUserId(httpContext);
+    if (userId is null) return Results.Unauthorized();
+
+    var response = await useCase.ExecuteAsync(userId, request, cancellationToken);
+    return Results.Ok(response);
+})
+.WithName("StartRoleplay")
+.WithOpenApi();
+
+app.MapPost("/me/roleplay/{sessionId}/turn", async (
+    HttpContext httpContext,
+    Guid sessionId,
+    EnglishCoach.Contracts.Roleplay.RecordTurnRequest request,
+    RecordTurnUseCase useCase,
+    CancellationToken cancellationToken) =>
+{
+    var userId = RequireUserId(httpContext);
+    if (userId is null) return Results.Unauthorized();
+
+    var response = await useCase.ExecuteAsync(userId, sessionId, request, cancellationToken);
+    return Results.Ok(response);
+})
+.WithName("RecordRoleplayTurn")
+.WithOpenApi();
+
+app.MapPost("/me/roleplay/{sessionId}/finalize", async (
+    HttpContext httpContext,
+    Guid sessionId,
+    FinalizeRoleplayUseCase useCase,
+    CancellationToken cancellationToken) =>
+{
+    var userId = RequireUserId(httpContext);
+    if (userId is null) return Results.Unauthorized();
+
+    var response = await useCase.ExecuteAsync(userId, sessionId, cancellationToken);
+    return Results.Ok(response);
+})
+.WithName("FinalizeRoleplay")
+.WithOpenApi();
+
+app.MapPost("/me/speaking/attempt", async (
+    HttpContext httpContext,
+    EnglishCoach.Contracts.Speaking.CreateSpeakingAttemptRequest request,
+    CreateSpeakingAttemptUseCase useCase,
+    CancellationToken cancellationToken) =>
+{
+    var userId = RequireUserId(httpContext);
+    if (userId is null) return Results.Unauthorized();
+
+    var attemptId = await useCase.ExecuteAsync(userId, request.ContentItemId, request.InitialTranscript, cancellationToken);
+    return Results.Ok(new EnglishCoach.Contracts.Speaking.CreateSpeakingAttemptResponse(attemptId));
+})
+.WithName("CreateSpeakingAttempt")
+.WithOpenApi();
+
+app.MapPost("/me/speaking/attempt/{attemptId}/evaluate", async (
+    HttpContext httpContext,
+    Guid attemptId,
+    SubmitSpeakingAttemptEvaluationUseCase useCase,
+    CancellationToken cancellationToken) =>
+{
+    var userId = RequireUserId(httpContext);
+    if (userId is null) return Results.Unauthorized();
+
+    var feedback = await useCase.ExecuteAsync(userId, attemptId, cancellationToken);
+    
+    // Map domain feedback to contract
+    var response = new EnglishCoach.Contracts.Speaking.SubmitSpeakingEvaluationResponse(
+        feedback.TopMistakes,
+        feedback.ImprovedAnswer,
+        feedback.PhrasesToReview,
+        feedback.RetryPrompt
+    );
+
+    return Results.Ok(response);
+})
+.WithName("EvaluateSpeakingAttempt")
 .WithOpenApi();
 
 app.MapGet("/me/reviews/due", async (
@@ -231,23 +338,56 @@ app.MapGet("/progress/readiness", () => Results.Ok(new
     }
 }));
 
-app.MapGet("/error-notebook/entries", () => Results.Ok(new[]
+app.MapGet("/me/error-notebook/entries", async (
+    HttpContext httpContext,
+    GetNotebookEntriesUseCase useCase,
+    CancellationToken cancellationToken) =>
 {
-    new
-    {
-        id = "e1",
-        pattern = "wait for",
-        original = "I wait your response.",
-        corrected = "I wait for your response.",
-        explanation = "Use 'for' after 'wait' when naming the thing expected.",
-        category = "Grammar",
-        recurrenceCount = 1,
-        isArchived = false,
-        lastSeenAt = DateTimeOffset.UtcNow.ToString("O")
-    }
-}));
+    var userId = RequireUserId(httpContext);
 
-app.MapGet("/admin/content/phrases", () => Results.Ok(new[]
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var response = await useCase.ExecuteAsync(userId, cancellationToken);
+    return Results.Ok(response);
+})
+.WithName("GetNotebookEntries")
+.WithOpenApi();
+
+app.MapPost("/me/error-notebook/promote", async (
+    HttpContext httpContext,
+    PromoteErrorPatternRequest request,
+    PromoteErrorPatternUseCase useCase,
+    CancellationToken cancellationToken) =>
+{
+    var userId = RequireUserId(httpContext);
+
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var entryId = await useCase.ExecuteAsync(userId, request, cancellationToken);
+    return Results.Ok(new { EntryId = entryId });
+})
+.WithName("PromoteErrorPattern")
+.WithOpenApi();
+
+var adminGroup = app.MapGroup("/admin")
+    .AddEndpointFilter(async (invocationContext, next) =>
+    {
+        var httpContext = invocationContext.HttpContext;
+        if (!httpContext.Request.Headers.TryGetValue("X-User-Role", out var role) || 
+            !role.ToString().Equals("Admin", StringComparison.OrdinalIgnoreCase))
+        {
+            return Results.StatusCode(403);
+        }
+        return await next(invocationContext);
+    });
+
+adminGroup.MapGet("/content/phrases", () => Results.Ok(new[]
 {
     new
     {
@@ -261,7 +401,7 @@ app.MapGet("/admin/content/phrases", () => Results.Ok(new[]
     }
 }));
 
-app.MapGet("/admin/content/scenarios", () => Results.Ok(new[]
+adminGroup.MapGet("/content/scenarios", () => Results.Ok(new[]
 {
     new
     {
@@ -279,9 +419,13 @@ app.Run();
 
 static string? RequireUserId(HttpContext httpContext)
 {
-    return httpContext.Request.Headers.TryGetValue("X-User-Id", out var values)
-        ? values.ToString()
-        : null;
+    if (httpContext.Request.Headers.TryGetValue("X-User-Id", out var values))
+    {
+        return values.ToString();
+    }
+    
+    // Fallback for local UI testing
+    return "test-user-123";
 }
 
 static Dictionary<string, string[]> ValidateRequest<T>(T request)

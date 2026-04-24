@@ -5,21 +5,19 @@ public enum SpeakingAttemptState
     Created,
     Uploaded,
     Transcribed,
-    Evaluating,
     Evaluated,
-    EvaluationFailed
+    Finalized
 }
 
 public static class SpeakingAttemptStateTransitions
 {
     private static readonly Dictionary<SpeakingAttemptState, HashSet<SpeakingAttemptState>> _allowedTransitions = new()
     {
-        [SpeakingAttemptState.Created] = new() { SpeakingAttemptState.Uploaded },
+        [SpeakingAttemptState.Created] = new() { SpeakingAttemptState.Uploaded, SpeakingAttemptState.Transcribed }, // Transcribed directly for MVP
         [SpeakingAttemptState.Uploaded] = new() { SpeakingAttemptState.Transcribed },
-        [SpeakingAttemptState.Transcribed] = new() { SpeakingAttemptState.Evaluating },
-        [SpeakingAttemptState.Evaluating] = new() { SpeakingAttemptState.Evaluated, SpeakingAttemptState.EvaluationFailed },
-        [SpeakingAttemptState.Evaluated] = new(),
-        [SpeakingAttemptState.EvaluationFailed] = new() { SpeakingAttemptState.Evaluating }, // Can retry
+        [SpeakingAttemptState.Transcribed] = new() { SpeakingAttemptState.Evaluated },
+        [SpeakingAttemptState.Evaluated] = new() { SpeakingAttemptState.Finalized },
+        [SpeakingAttemptState.Finalized] = new()
     };
 
     public static bool CanTransition(SpeakingAttemptState from, SpeakingAttemptState to) =>

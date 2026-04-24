@@ -94,10 +94,10 @@ public sealed class MyProfileEndpointsTests : IAsyncLifetime
             DisplayName: "",
             NativeLanguage: "vi",
             Timezone: "UTC",
-            CurrentEnglishLevel: "B2",
+            CurrentLevel: "B2",
             TargetUseCase: "support calls",
             TargetTimelineWeeks: 12,
-            Role: "support");
+            Role: "invalid-role");
 
         var response = await client.PutAsJsonAsync("/me/profile", request);
 
@@ -128,7 +128,7 @@ public sealed class MyProfileEndpointsTests : IAsyncLifetime
             DisplayName: "Bao Nguyen",
             NativeLanguage: "vi",
             Timezone: "Asia/Bangkok",
-            CurrentEnglishLevel: "B2",
+            CurrentLevel: "B2",
             TargetUseCase: "technical interviews",
             TargetTimelineWeeks: 18,
             Role: "pm");

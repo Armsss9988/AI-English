@@ -1,5 +1,19 @@
 namespace EnglishCoach.Contracts.Speaking;
 
+public record CreateSpeakingAttemptRequest(
+    string ContentItemId,
+    string? InitialTranscript
+);
+
+public record CreateSpeakingAttemptResponse(Guid AttemptId);
+
+public record SubmitSpeakingEvaluationResponse(
+    string TopMistakes,
+    string ImprovedAnswer,
+    string PhrasesToReview,
+    string RetryPrompt
+);
+
 public record SubmitAttemptRequest(
     Guid SessionId,
     string AudioUrl,

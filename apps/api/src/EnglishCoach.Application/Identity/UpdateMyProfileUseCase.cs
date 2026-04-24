@@ -18,19 +18,23 @@ public sealed class UpdateMyProfileUseCase
         CancellationToken cancellationToken)
     {
         var currentProfile = await _repository.GetByUserIdAsync(userId, cancellationToken);
-        var englishLevel = Enum.Parse<EnglishLevel>(request.CurrentEnglishLevel, ignoreCase: true);
+        var englishLevel = Enum.Parse<EnglishLevel>(request.CurrentLevel, ignoreCase: true);
         var role = Enum.Parse<LearnerRole>(request.Role, ignoreCase: true);
+
+        var displayName = string.IsNullOrWhiteSpace(request.DisplayName) ? "Learner" : request.DisplayName;
+        var nativeLanguage = string.IsNullOrWhiteSpace(request.NativeLanguage) ? "Vietnamese" : request.NativeLanguage;
+        var timelineWeeks = request.TargetTimelineWeeks ?? 12;
 
         if (currentProfile is null)
         {
             currentProfile = LearnerProfile.Create(
                 userId,
-                request.DisplayName,
-                request.NativeLanguage,
+                displayName,
+                nativeLanguage,
                 request.Timezone,
                 englishLevel,
                 request.TargetUseCase,
-                request.TargetTimelineWeeks,
+                timelineWeeks,
                 role);
 
             await _repository.CreateAsync(currentProfile, cancellationToken);
@@ -39,12 +43,12 @@ public sealed class UpdateMyProfileUseCase
         }
 
         currentProfile.Update(
-            request.DisplayName,
-            request.NativeLanguage,
+            displayName,
+            nativeLanguage,
             request.Timezone,
             englishLevel,
             request.TargetUseCase,
-            request.TargetTimelineWeeks,
+            timelineWeeks,
             role);
 
         await _repository.UpdateAsync(currentProfile, cancellationToken);
