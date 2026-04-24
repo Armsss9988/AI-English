@@ -1,5 +1,5 @@
-import React from 'react';
-import styles from './Select.module.css';
+import React from "react";
+import styles from "./Select.module.css";
 
 interface Option {
   value: string;
@@ -16,7 +16,7 @@ export const Select: React.FC<SelectProps> = ({
   label,
   options,
   error,
-  className = '',
+  className = "",
   id,
   ...props
 }) => {
@@ -32,7 +32,7 @@ export const Select: React.FC<SelectProps> = ({
       <div className={styles.wrapper}>
         <select
           id={selectId}
-          className={`${styles.select} ${error ? styles.selectError : ''}`}
+          className={`${styles.select} ${error ? styles.selectError : ""}`}
           {...props}
         >
           {options.map((opt) => (
@@ -42,8 +42,20 @@ export const Select: React.FC<SelectProps> = ({
           ))}
         </select>
         <div className={styles.icon}>
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M2.5 4.5L6 8L9.5 4.5"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         </div>
       </div>

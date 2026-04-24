@@ -1,9 +1,13 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
 using EnglishCoach.Application.Identity;
+using EnglishCoach.Application.Review;
 using EnglishCoach.Contracts.Identity;
+using EnglishCoach.Contracts.Review;
 using EnglishCoach.Infrastructure.Identity;
 using EnglishCoach.Infrastructure.Persistence;
+using EnglishCoach.Infrastructure.Review;
+using EnglishCoach.SharedKernel.Time;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +23,11 @@ builder.Services.AddDbContext<EnglishCoachDbContext>(options =>
 builder.Services.AddScoped<ILearnerProfileRepository, LearnerProfileRepository>();
 builder.Services.AddScoped<GetMyProfileUseCase>();
 builder.Services.AddScoped<UpdateMyProfileUseCase>();
+builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
+builder.Services.AddScoped<EnsureReviewItemExistsUseCase>();
+builder.Services.AddScoped<GetDueReviewItemsUseCase>();
+builder.Services.AddScoped<CompleteReviewItemUseCase>();
+builder.Services.AddSingleton<IClock, SystemClock>();
 
 var app = builder.Build();
 
@@ -80,6 +89,58 @@ app.MapPut("/me/profile", async (
     return Results.Ok(response);
 })
 .WithName("UpdateMyProfile")
+.WithOpenApi();
+
+app.MapGet("/me/reviews/due", async (
+    HttpContext httpContext,
+    GetDueReviewItemsUseCase useCase,
+    CancellationToken cancellationToken) =>
+{
+    var userId = RequireUserId(httpContext);
+
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var response = await useCase.ExecuteAsync(userId, cancellationToken);
+    return Results.Ok(response);
+})
+.WithName("GetDueReviewItems")
+.WithOpenApi();
+
+app.MapPost("/me/reviews/{reviewItemId}/complete", async (
+    HttpContext httpContext,
+    string reviewItemId,
+    CompleteReviewItemRequest request,
+    CompleteReviewItemUseCase useCase,
+    CancellationToken cancellationToken) =>
+{
+    var userId = RequireUserId(httpContext);
+
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var validationErrors = ValidateRequest(request);
+
+    if (validationErrors.Count > 0)
+    {
+        return Results.ValidationProblem(validationErrors);
+    }
+
+    try
+    {
+        var response = await useCase.ExecuteAsync(userId, reviewItemId, request, cancellationToken);
+        return Results.Ok(response);
+    }
+    catch (InvalidOperationException exception) when (exception.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
+    {
+        return Results.NotFound();
+    }
+})
+.WithName("CompleteReviewItem")
 .WithOpenApi();
 
 app.Run();

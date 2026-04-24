@@ -1,20 +1,20 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { useForm } from 'react-hook-form';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { UpdateProfileRequest, EnglishLevel } from '@english-coach/contracts';
-import { Button, Input, Select } from '@english-coach/ui';
-import { updateProfile } from '@/lib/api/identity';
-import styles from './onboarding.module.css';
+import React from "react";
+import { useForm } from "react-hook-form";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { UpdateProfileRequest, EnglishLevel } from "@english-coach/contracts";
+import { Button, Input, Select } from "@english-coach/ui";
+import { updateProfile } from "@/lib/api/identity";
+import styles from "./onboarding.module.css";
 
 const ENGLISH_LEVELS: { value: EnglishLevel; label: string }[] = [
-  { value: 'A1', label: 'A1 - Beginner' },
-  { value: 'A2', label: 'A2 - Elementary' },
-  { value: 'B1', label: 'B1 - Intermediate' },
-  { value: 'B2', label: 'B2 - Upper Intermediate' },
-  { value: 'C1', label: 'C1 - Advanced' },
-  { value: 'C2', label: 'C2 - Proficiency' },
+  { value: "A1", label: "A1 - Beginner" },
+  { value: "A2", label: "A2 - Elementary" },
+  { value: "B1", label: "B1 - Intermediate" },
+  { value: "B2", label: "B2 - Upper Intermediate" },
+  { value: "C1", label: "C1 - Advanced" },
+  { value: "C2", label: "C2 - Proficiency" },
 ];
 
 export const OnboardingForm: React.FC = () => {
@@ -25,17 +25,17 @@ export const OnboardingForm: React.FC = () => {
     formState: { errors },
   } = useForm<UpdateProfileRequest>({
     defaultValues: {
-      role: '',
-      timezone: 'UTC+7',
-      currentLevel: 'B1',
-      targetUseCase: '',
+      role: "",
+      timezone: "UTC+7",
+      currentLevel: "B1",
+      targetUseCase: "",
     },
   });
 
   const mutation = useMutation({
     mutationFn: updateProfile,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
       // In a real app, we might redirect here
     },
   });
@@ -48,7 +48,9 @@ export const OnboardingForm: React.FC = () => {
     <div className={styles.formCard}>
       <div className={styles.header}>
         <h1 className={styles.title}>Welcome to English Coach</h1>
-        <p className={styles.subtitle}>Let&apos;s personalize your learning experience</p>
+        <p className={styles.subtitle}>
+          Let&apos;s personalize your learning experience
+        </p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className={styles.form}>
@@ -56,7 +58,7 @@ export const OnboardingForm: React.FC = () => {
           label="What is your professional role?"
           placeholder="e.g. Senior Frontend Developer"
           error={errors.role?.message}
-          {...register('role', { required: 'Role is required' })}
+          {...register("role", { required: "Role is required" })}
         />
 
         <div className={styles.row}>
@@ -64,14 +66,14 @@ export const OnboardingForm: React.FC = () => {
             label="Current English Level"
             options={ENGLISH_LEVELS}
             error={errors.currentLevel?.message}
-            {...register('currentLevel', { required: 'Level is required' })}
+            {...register("currentLevel", { required: "Level is required" })}
           />
 
           <Input
             label="Timezone"
             placeholder="e.g. UTC+7"
             error={errors.timezone?.message}
-            {...register('timezone', { required: 'Timezone is required' })}
+            {...register("timezone", { required: "Timezone is required" })}
           />
         </div>
 
@@ -79,7 +81,7 @@ export const OnboardingForm: React.FC = () => {
           label="Primary Learning Goal"
           placeholder="e.g. Pitching to US clients, Technical reviews..."
           error={errors.targetUseCase?.message}
-          {...register('targetUseCase', { required: 'Goal is required' })}
+          {...register("targetUseCase", { required: "Goal is required" })}
         />
 
         {mutation.isError && (
