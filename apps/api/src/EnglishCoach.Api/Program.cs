@@ -264,82 +264,123 @@ app.MapPost("/me/reviews/{reviewItemId}/complete", async (
 .WithName("CompleteReviewItem")
 .WithOpenApi();
 
-var defaultPhraseId = "11111111-1111-1111-1111-111111111111";
-var defaultScenarioId = "22222222-2222-2222-2222-222222222222";
+// ── Learning Content: Real DB queries ──
 
-app.MapGet("/learning-content/phrases", () => Results.Ok(new[]
+app.MapGet("/learning-content/phrases", async (
+    IPhraseRepository phraseRepo,
+    CancellationToken cancellationToken) =>
 {
-    new
+    var phrases = await phraseRepo.GetAllPublishedAsync(cancellationToken);
+    var response = phrases.Select(p => new
     {
-        id = defaultPhraseId,
-        content = "Let's touch base on this.",
-        meaning = "Discuss this topic together.",
-        category = "Meetings",
-        difficulty = "Intermediate",
-        function = "Meetings"
-    }
-}));
+        id = p.Id,
+        content = p.Text,
+        meaning = p.ViMeaning,
+        category = p.CommunicationFunction.ToString(),
+        difficulty = p.Level.ToString(),
+        function = p.CommunicationFunction.ToString()
+    });
+    return Results.Ok(response);
+})
+.WithName("GetPublishedPhrases")
+.WithOpenApi();
 
-app.MapGet("/learning-content/scenarios", () => Results.Ok(new[]
+app.MapGet("/learning-content/scenarios", async (
+    IRoleplayScenarioRepository scenarioRepo,
+    CancellationToken cancellationToken) =>
 {
-    new
+    var scenarios = await scenarioRepo.GetAllPublishedAsync(cancellationToken);
+    var response = scenarios.Select(s => new
     {
-        id = defaultScenarioId,
-        title = "Client Interview",
-        goal = "Introduce a project and clarify expectations.",
-        category = "Client Communication",
-        difficulty = "Advanced",
-        persona = "Client stakeholder"
-    }
-}));
+        id = s.Id,
+        title = s.Title,
+        goal = s.CommunicationGoal,
+        category = s.WorkplaceContext,
+        difficulty = s.Difficulty switch { <= 1 => "Beginner", 2 => "Intermediate", _ => "Advanced" },
+        persona = s.ClientPersona
+    });
+    return Results.Ok(response);
+})
+.WithName("GetPublishedScenarios")
+.WithOpenApi();
 
-app.MapGet("/srs-reviews/due", () => Results.Ok(new[]
+// ── SRS Reviews: redirect to real /me/reviews/* endpoints ──
+// Frontend calls /srs-reviews/due → redirected to real review use case
+
+app.MapGet("/srs-reviews/due", async (
+    HttpContext httpContext,
+    GetDueReviewItemsUseCase useCase,
+    CancellationToken cancellationToken) =>
 {
-    new
-    {
-        id = "r1",
-        phraseId = defaultPhraseId,
-        content = "Clarify expectations",
-        meaning = "Make expectations explicit.",
-        masteryLevel = 1
-    }
-}));
+    var userId = RequireUserId(httpContext);
+    if (userId is null) return Results.Unauthorized();
 
-app.MapPost("/srs-reviews/complete", (CompleteReviewRequest request) => Results.Ok());
+    var items = await useCase.ExecuteAsync(userId, cancellationToken);
+    // Map to legacy frontend shape
+    var response = items.Items.Select(i => new
+    {
+        id = i.ReviewItemId,
+        phraseId = i.ItemId,
+        content = i.DisplayText,
+        meaning = i.DisplaySubtitle ?? "",
+        masteryLevel = i.RepetitionCount
+    });
+    return Results.Ok(response);
+})
+.WithName("GetSrsReviewsDue")
+.WithOpenApi();
+
+app.MapPost("/srs-reviews/complete", async (
+    HttpContext httpContext,
+    CompleteReviewLegacyRequest request,
+    CompleteReviewItemUseCase useCase,
+    CancellationToken cancellationToken) =>
+{
+    var userId = RequireUserId(httpContext);
+    if (userId is null) return Results.Unauthorized();
+
+    var qualityMap = request.Outcome?.ToLowerInvariant() switch
+    {
+        "easy" => "easy",
+        "good" => "good",
+        "hard" => "hard",
+        _ => "again"
+    };
+
+    try
+    {
+        var completeRequest = new CompleteReviewItemRequest(qualityMap);
+        await useCase.ExecuteAsync(userId, request.ReviewItemId, completeRequest, cancellationToken);
+        return Results.Ok();
+    }
+    catch (InvalidOperationException ex) when (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
+    {
+        return Results.NotFound();
+    }
+})
+.WithName("CompleteSrsReview")
+.WithOpenApi();
+
+// ── Progress: TODO — module not yet implemented, return empty data ──
 
 app.MapGet("/progress/daily-mission", () => Results.Ok(new
 {
     date = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd"),
-    missions = new[]
-    {
-        new
-        {
-            id = "m1",
-            type = "review",
-            title = "Complete 5 reviews",
-            description = "Review due phrases for today.",
-            isCompleted = false,
-            count = 5
-        }
-    }
-}));
+    missions = Array.Empty<object>()
+}))
+.WithName("GetDailyMission")
+.WithOpenApi();
 
 app.MapGet("/progress/readiness", () => Results.Ok(new
 {
-    overallScore = 75,
+    overallScore = 0,
     date = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd"),
     version = "v1",
-    trend = "improving",
-    capabilities = new[]
-    {
-        new
-        {
-            area = "Grammar",
-            score = 80,
-            explanation = "Consistent sentence structure in meeting phrases."
-        }
-    }
-}));
+    trend = "stable",
+    capabilities = Array.Empty<object>()
+}))
+.WithName("GetReadiness")
+.WithOpenApi();
 
 app.MapGet("/me/error-notebook/entries", async (
     HttpContext httpContext,
@@ -390,33 +431,45 @@ var adminGroup = app.MapGroup("/admin")
         return await next(invocationContext);
     });
 
-adminGroup.MapGet("/content/phrases", () => Results.Ok(new[]
+adminGroup.MapGet("/content/phrases", async (
+    EnglishCoachDbContext dbContext,
+    CancellationToken cancellationToken) =>
 {
-    new
+    var phrases = await dbContext.Phrases.ToListAsync(cancellationToken);
+    var response = phrases.Select(p => new
     {
-        id = "ap1",
-        content = "Draft phrase",
-        meaning = "A draft phrase for admin review.",
-        category = "Meetings",
-        difficulty = "Beginner",
-        function = "Meetings",
-        status = "draft"
-    }
-}));
+        id = p.Id,
+        content = p.Text,
+        meaning = p.ViMeaning,
+        category = p.CommunicationFunction.ToString(),
+        difficulty = p.Level.ToString(),
+        function = p.CommunicationFunction.ToString(),
+        status = p.State.ToString().ToLowerInvariant()
+    });
+    return Results.Ok(response);
+})
+.WithName("AdminGetPhrases")
+.WithOpenApi();
 
-adminGroup.MapGet("/content/scenarios", () => Results.Ok(new[]
+adminGroup.MapGet("/content/scenarios", async (
+    EnglishCoachDbContext dbContext,
+    CancellationToken cancellationToken) =>
 {
-    new
+    var scenarios = await dbContext.RoleplayScenarios.ToListAsync(cancellationToken);
+    var response = scenarios.Select(s => new
     {
-        id = "as1",
-        title = "Draft scenario",
-        goal = "Practice a client update.",
-        category = "Client Communication",
-        difficulty = "Intermediate",
-        persona = "Project manager",
-        status = "draft"
-    }
-}));
+        id = s.Id,
+        title = s.Title,
+        goal = s.CommunicationGoal,
+        category = s.WorkplaceContext,
+        difficulty = s.Difficulty switch { <= 1 => "Beginner", 2 => "Intermediate", _ => "Advanced" },
+        persona = s.ClientPersona,
+        status = s.State.ToString().ToLowerInvariant()
+    });
+    return Results.Ok(response);
+})
+.WithName("AdminGetScenarios")
+.WithOpenApi();
 
 using (var scope = app.Services.CreateScope())
 {
@@ -469,11 +522,12 @@ static string? RequireUserId(HttpContext httpContext)
 {
     if (httpContext.Request.Headers.TryGetValue("X-User-Id", out var values))
     {
-        return values.ToString();
+        var userId = values.ToString();
+        if (!string.IsNullOrWhiteSpace(userId))
+            return userId;
     }
     
-    // Fallback for local UI testing
-    return "test-user-123";
+    return null;
 }
 
 static Dictionary<string, string[]> ValidateRequest<T>(T request)
@@ -498,5 +552,5 @@ static Dictionary<string, string[]> ValidateRequest<T>(T request)
 }
 
 internal sealed record HealthResponse(string Status);
-internal sealed record CompleteReviewRequest(string ReviewItemId, int Quality);
+internal sealed record CompleteReviewLegacyRequest(string ReviewItemId, string? Outcome);
 public partial class Program;
