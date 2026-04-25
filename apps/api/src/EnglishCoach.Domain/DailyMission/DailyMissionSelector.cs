@@ -30,7 +30,9 @@ public class DailyMissionSelector
         var missionDate = _clock.Today;
 
         var dueReviews = await _dataProvider.GetDueReviewsAsync(learnerId, policy.DueReviewCount, ct);
+
         var speakingDrills = await _dataProvider.GetSpeakingDrillsAsync(policy.SpeakingDrillCount, ct);
+
         var roleplayScenarios = await _dataProvider.GetRoleplayScenariosAsync(null, policy.RoleplayScenarioCount, ct);
 
         IReadOnlyList<RetryTask> retryTasks = Array.Empty<RetryTask>();
@@ -54,6 +56,23 @@ public class DailyMissionSelector
             roleplayScenarios,
             retryTasks,
             hasRetryTask
+        );
+    }
+
+    public DailyMissionSelection SelectWithGracefulDegradation(
+        Guid learnerId,
+        DailyMissionPolicy policy,
+        IDailyMissionDataProvider dataProvider)
+    {
+        // Fallback when data provider is unavailable
+        return new DailyMissionSelection(
+            learnerId,
+            _clock.Today,
+            Array.Empty<DueReviewItem>(),
+            Array.Empty<SpeakingTask>(),
+            Array.Empty<RoleplayTask>(),
+            Array.Empty<RetryTask>(),
+            false
         );
     }
 }

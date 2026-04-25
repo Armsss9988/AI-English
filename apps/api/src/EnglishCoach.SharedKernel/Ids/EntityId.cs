@@ -3,6 +3,22 @@ namespace EnglishCoach.SharedKernel.Ids;
 public abstract record EntityId(Guid Value)
 {
     public override string ToString() => Value.ToString();
+
+    public static bool TryParse<T>(string? input, out T? result) where T : EntityId
+    {
+        if (Guid.TryParse(input, out var guid))
+        {
+            result = Create<T>(guid);
+            return true;
+        }
+        result = null;
+        return false;
+    }
+
+    protected static T Create<T>(Guid guid) where T : EntityId
+    {
+        return (T)Activator.CreateInstance(typeof(T), guid)!;
+    }
 }
 
 public sealed record UserId(Guid Value) : EntityId(Value)
