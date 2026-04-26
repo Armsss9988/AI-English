@@ -26,6 +26,10 @@ builder.Services.AddDbContext<EnglishCoachDbContext>(options =>
 
     options.UseNpgsql(connectionString);
 });
+
+// Options
+builder.Services.Configure<EnglishCoach.Infrastructure.AI.OpenAI.OpenAIOptions>(builder.Configuration.GetSection("OpenAI"));
+
 builder.Services.AddScoped<ILearnerProfileRepository, LearnerProfileRepository>();
 builder.Services.AddScoped<GetMyProfileUseCase>();
 builder.Services.AddScoped<UpdateMyProfileUseCase>();
@@ -46,9 +50,23 @@ builder.Services.AddScoped<SubmitSpeakingAttemptEvaluationUseCase>();
 builder.Services.AddScoped<EnsureReviewItemExistsUseCase>();
 builder.Services.AddScoped<GetDueReviewItemsUseCase>();
 builder.Services.AddScoped<CompleteReviewItemUseCase>();
-builder.Services.AddScoped<EnglishCoach.Application.Ports.ISpeechTranscriptionService, EnglishCoach.Infrastructure.AI.FakeAdapters.FakeTranscriptionService>();
-builder.Services.AddScoped<EnglishCoach.Application.Ports.ISpeakingFeedbackService, EnglishCoach.Infrastructure.AI.FakeAdapters.FakeFeedbackService>();
-builder.Services.AddScoped<EnglishCoach.Application.Ports.IRoleplayResponseService, EnglishCoach.Infrastructure.AI.FakeAdapters.FakeRoleplayService>();
+
+// Progress & Daily Mission
+builder.Services.AddScoped<EnglishCoach.Domain.DailyMission.IDailyMissionDataProvider, EnglishCoach.Infrastructure.DailyMission.DailyMissionDataProvider>();
+builder.Services.AddScoped<EnglishCoach.Domain.DailyMission.DailyMissionSelector>();
+builder.Services.AddScoped<EnglishCoach.Application.DailyMission.GetDailyMissionQuery>();
+builder.Services.AddScoped<EnglishCoach.Application.Progress.IProgressDataProvider, EnglishCoach.Infrastructure.Progress.ProgressDataProvider>();
+builder.Services.AddScoped<EnglishCoach.Application.Progress.ILearnerProgressDataProvider, EnglishCoach.Infrastructure.Progress.ProgressDataProvider>();
+builder.Services.AddScoped<EnglishCoach.Application.Progress.IReadinessSnapshotRepository, EnglishCoach.Infrastructure.Progress.ReadinessSnapshotRepository>();
+builder.Services.AddScoped<EnglishCoach.Application.Progress.RecalculateReadinessUseCase>();
+builder.Services.AddScoped<EnglishCoach.Application.Progress.GetReadinessQuery>();
+builder.Services.AddScoped<EnglishCoach.Application.Progress.GetCapabilityMatrixQuery>();
+
+// AI Providers (NIM / OpenAI)
+builder.Services.AddScoped<EnglishCoach.Application.Ports.ISpeechTranscriptionService, EnglishCoach.Infrastructure.AI.OpenAI.NimTranscriptionService>();
+builder.Services.AddScoped<EnglishCoach.Application.Ports.ISpeakingFeedbackService, EnglishCoach.Infrastructure.AI.OpenAI.NimSpeakingFeedbackService>();
+builder.Services.AddScoped<EnglishCoach.Application.Ports.IRoleplayResponseService, EnglishCoach.Infrastructure.AI.OpenAI.NimRoleplayService>();
+
 builder.Services.AddSingleton<IClock, SystemClock>();
 
 builder.Services.AddCors(options =>
@@ -361,25 +379,57 @@ app.MapPost("/srs-reviews/complete", async (
 .WithName("CompleteSrsReview")
 .WithOpenApi();
 
-// ── Progress: TODO — module not yet implemented, return empty data ──
+// ── Progress & Daily Mission ──
 
-app.MapGet("/progress/daily-mission", () => Results.Ok(new
+app.MapGet("/progress/daily-mission", async (
+    HttpContext httpContext,
+    EnglishCoach.Application.DailyMission.GetDailyMissionQuery query,
+    CancellationToken cancellationToken) =>
 {
-    date = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd"),
-    missions = Array.Empty<object>()
-}))
+    var userId = RequireUserId(httpContext);
+    if (userId is null) return Results.Unauthorized();
+
+    if (!Guid.TryParse(userId, out var userGuid))
+        return Results.BadRequest("Invalid user ID");
+
+    var response = await query.ExecuteAsync(userGuid, cancellationToken);
+    return Results.Ok(response);
+})
 .WithName("GetDailyMission")
 .WithOpenApi();
 
-app.MapGet("/progress/readiness", () => Results.Ok(new
+app.MapGet("/progress/readiness", async (
+    HttpContext httpContext,
+    EnglishCoach.Application.Progress.GetReadinessQuery query,
+    CancellationToken cancellationToken) =>
 {
-    overallScore = 0,
-    date = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd"),
-    version = "v1",
-    trend = "stable",
-    capabilities = Array.Empty<object>()
-}))
+    var userId = RequireUserId(httpContext);
+    if (userId is null) return Results.Unauthorized();
+
+    if (!Guid.TryParse(userId, out var userGuid))
+        return Results.BadRequest("Invalid user ID");
+
+    var response = await query.ExecuteAsync(userGuid, cancellationToken);
+    return Results.Ok(response);
+})
 .WithName("GetReadiness")
+.WithOpenApi();
+
+app.MapGet("/progress/capabilities", async (
+    HttpContext httpContext,
+    EnglishCoach.Application.Progress.GetCapabilityMatrixQuery query,
+    CancellationToken cancellationToken) =>
+{
+    var userId = RequireUserId(httpContext);
+    if (userId is null) return Results.Unauthorized();
+
+    if (!Guid.TryParse(userId, out var userGuid))
+        return Results.BadRequest("Invalid user ID");
+
+    var response = await query.ExecuteAsync(userGuid, cancellationToken);
+    return Results.Ok(response);
+})
+.WithName("GetCapabilities")
 .WithOpenApi();
 
 app.MapGet("/me/error-notebook/entries", async (
@@ -527,7 +577,8 @@ static string? RequireUserId(HttpContext httpContext)
             return userId;
     }
     
-    return null;
+    // For local UI testing without real auth, return a default mock user ID
+    return "00000000-0000-0000-0000-000000000001";
 }
 
 static Dictionary<string, string[]> ValidateRequest<T>(T request)

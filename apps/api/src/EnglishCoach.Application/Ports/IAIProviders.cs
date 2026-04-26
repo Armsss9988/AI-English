@@ -106,6 +106,10 @@ public interface IRoleplayResponseService
         RoleplayContext context,
         CancellationToken ct = default);
 
+    Task<EnglishCoach.Domain.Roleplay.RoleplaySummary> EvaluateSessionAsync(
+        RoleplayContext context,
+        CancellationToken ct = default);
+
     ProviderKind Provider { get; }
 }
 

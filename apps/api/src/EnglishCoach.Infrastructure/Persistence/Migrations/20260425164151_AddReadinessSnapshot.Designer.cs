@@ -3,6 +3,7 @@ using System;
 using EnglishCoach.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EnglishCoach.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(EnglishCoachDbContext))]
-    partial class EnglishCoachDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260425164151_AddReadinessSnapshot")]
+    partial class AddReadinessSnapshot
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -283,7 +286,7 @@ namespace EnglishCoach.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<decimal>("Score")
-                        .HasColumnType("decimal(7,4)");
+                        .HasColumnType("decimal(5,4)");
 
                     b.HasKey("Id");
 

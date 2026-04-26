@@ -2,7 +2,7 @@ namespace EnglishCoach.Contracts.DailyMission;
 
 public record DailyMissionResponse(
     DateOnly MissionDate,
-    IReadOnlyList<MissionTaskResponse> Tasks,
+    IReadOnlyList<MissionTaskResponse> Missions,
     int TotalItems,
     bool HasRetryTask
 );

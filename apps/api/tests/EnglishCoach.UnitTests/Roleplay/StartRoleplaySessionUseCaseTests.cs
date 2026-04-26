@@ -136,5 +136,10 @@ public class StartRoleplaySessionUseCaseTests
                 IsSessionComplete = false
             }, ProviderKind.Fake));
         }
+
+        public Task<RoleplaySummary> EvaluateSessionAsync(RoleplayContext context, CancellationToken ct = default)
+        {
+            return Task.FromResult(new RoleplaySummary("Passed", "Good", "Good", "", "", ""));
+        }
     }
 }

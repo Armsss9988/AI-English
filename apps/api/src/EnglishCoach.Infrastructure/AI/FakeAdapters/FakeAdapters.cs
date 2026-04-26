@@ -1,4 +1,5 @@
 using EnglishCoach.Application.Ports;
+using EnglishCoach.Domain.Roleplay;
 
 namespace EnglishCoach.Infrastructure.AI.FakeAdapters;
 
@@ -64,5 +65,17 @@ public class FakeRoleplayService : IRoleplayResponseService
         };
 
         return Task.FromResult(RoleplayResult.Success(content, ProviderKind.Fake));
+    }
+
+    public Task<RoleplaySummary> EvaluateSessionAsync(RoleplayContext context, CancellationToken ct = default)
+    {
+        return Task.FromResult(new RoleplaySummary(
+            "Passed",
+            "Good job overall.",
+            "Watch out for tenses.",
+            "I'll get back to you.",
+            "get back to you",
+            "Be more confident."
+        ));
     }
 }

@@ -5,11 +5,11 @@ public record ReadinessResponse(
     int FormulaVersion,
     string Trend,
     DateTimeOffset CalculatedAt,
-    IReadOnlyList<ReadinessComponentResponse> Components
+    IReadOnlyList<ReadinessComponentResponse> Capabilities
 );
 
 public record ReadinessComponentResponse(
-    string Name,
+    string Area,
     decimal RawValue,
     decimal Weight,
     decimal WeightedValue,

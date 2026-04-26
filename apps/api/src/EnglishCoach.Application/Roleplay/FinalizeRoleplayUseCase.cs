@@ -8,16 +8,16 @@ public sealed class FinalizeRoleplayUseCase
 {
     private readonly IRoleplaySessionRepository _sessionRepository;
     private readonly IRoleplayScenarioRepository _scenarioRepository;
-    private readonly ISpeakingFeedbackService _feedbackService;
+    private readonly IRoleplayResponseService _aiService;
 
     public FinalizeRoleplayUseCase(
         IRoleplaySessionRepository sessionRepository,
         IRoleplayScenarioRepository scenarioRepository,
-        ISpeakingFeedbackService feedbackService)
+        IRoleplayResponseService aiService)
     {
         _sessionRepository = sessionRepository;
         _scenarioRepository = scenarioRepository;
-        _feedbackService = feedbackService;
+        _aiService = aiService;
     }
 
     public async Task<RoleplaySummary> ExecuteAsync(
@@ -40,24 +40,24 @@ public sealed class FinalizeRoleplayUseCase
             throw new InvalidOperationException("Scenario not found.");
         }
 
-        // Extract learner turns
-        var learnerTurns = session.Turns
-            .Where(t => t.Role == TurnRole.Learner)
-            .Select(t => t.Message)
-            .ToList();
+        var context = new RoleplayContext
+        {
+            SessionId = Guid.Parse(session.Id),
+            ScenarioId = Guid.Parse(scenario.Id),
+            ScenarioTitle = scenario.Title,
+            ScenarioPersona = scenario.ClientPersona,
+            ScenarioGoal = scenario.CommunicationGoal,
+            ConversationHistory = session.Turns.Select(t => new RoleplayTurnRecord
+            {
+                Speaker = t.Role.ToString(),
+                Message = t.Message,
+                Timestamp = t.CreatedAtUtc
+            }).ToList(),
+            Difficulty = scenario.Difficulty,
+            SuccessCriteria = scenario.PassCriteria
+        };
 
-        // In a real app, this would use a specialized roleplay feedback service.
-        // For MVP, we'll simulate a roleplay summary evaluation using fake service logic.
-        // We map to RoleplaySummary properly.
-        
-        var summary = new RoleplaySummary(
-            "Passed",
-            "You addressed the client well.",
-            "Watch out for tense agreement.",
-            "I will check with the team and get back to you.",
-            "check with the team",
-            "Try to be more confident in the intro."
-        );
+        var summary = await _aiService.EvaluateSessionAsync(context, ct);
 
         session.Finalize(summary);
         
