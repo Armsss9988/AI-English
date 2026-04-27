@@ -27,6 +27,17 @@ CV + JD
 -> show progress over sessions
 ```
 
+## Product Differentiators
+
+These are the product reasons to build this instead of telling the user to paste CV/JD into ChatGPT Plus:
+
+- The system owns a stable interview capability map for Vietnamese IT professionals, so practice covers the right job-interview skills instead of wandering conversation.
+- Each question has a stored success rubric derived from CV + JD, so answer evaluation can be checked against explicit criteria.
+- Weak answers trigger a retry loop; reading feedback is not counted as learning progress.
+- The app remembers recurring mistakes and useful phrases across sessions, then routes them into notebook/review.
+- Readiness is shown by capability and evidence, not as a vague global English score.
+- Progress is comparable across sessions, so the learner can see whether project deep-dive, STAR, or client communication answers improved.
+
 ## Non-Negotiable Behavior
 
 - A learner answer is not automatically progress.
@@ -36,13 +47,20 @@ CV + JD
 - Repeated mistakes must become notebook/review material.
 - Readiness is task-based, not a fake global English score.
 - Provider failure must degrade to fallback coaching, not block the session with HTTP 500.
+- Fallback or unverified evaluations must not improve readiness.
+- A provider may propose evidence and wording, but code owns pass/retry/readiness decisions.
+- Better answers must preserve the learner's real CV/project experience and must not invent achievements.
 
 ## File Map
 
 ### Backend Domain
 
+- Create `apps/api/src/EnglishCoach.Domain/InterviewPractice/InterviewCapability.cs`
+  - Stable capability taxonomy for Vietnam IT interviews.
+- Create `apps/api/src/EnglishCoach.Domain/InterviewPractice/InterviewQuestionRubric.cs`
+  - Success criteria for each question.
 - Modify `apps/api/src/EnglishCoach.Domain/InterviewPractice/InterviewTurn.cs`
-  - Store question number, attempt number, accepted/progress status, and normalized answer evaluation JSON.
+  - Store question number, attempt number, accepted/progress status, readiness eligibility, evaluation confidence, and normalized answer evaluation JSON.
 - Modify `apps/api/src/EnglishCoach.Domain/InterviewPractice/InterviewSession.cs`
   - Count accepted answers instead of raw learner turns.
   - Add methods for recording evaluated learner attempts and retry/advance decisions.
@@ -59,6 +77,8 @@ CV + JD
   - Evaluate answer, apply retry policy, persist evaluation, return scorecard/retry response.
 - Create `apps/api/src/EnglishCoach.Application/InterviewPractice/GetInterviewReadinessMapQuery.cs`
   - Return task-level readiness for the current JD/profile.
+- Create `apps/api/src/EnglishCoach.Application/InterviewPractice/GetInterviewProgressQuery.cs`
+  - Return capability trends across finalized sessions.
 - Create `apps/api/src/EnglishCoach.Application/InterviewPractice/PromoteInterviewCoachingItemsUseCase.cs`
   - Promote mistakes and phrase candidates into existing notebook/review modules.
 
@@ -96,8 +116,100 @@ CV + JD
   - Render evidence, better answer, and retry drill.
 - Create `apps/web/src/features/interview/InterviewReadinessMap.tsx`
   - Show JD readiness by capability.
+- Create `apps/web/src/features/interview/InterviewProgressTrend.tsx`
+  - Show improvement by capability across sessions.
 - Modify `apps/web/src/features/interview/interview.module.css`
   - Add scorecard/readiness styles.
+
+---
+
+## Phase 0: Capability and Rubric Foundation
+
+This phase prevents business rules from living only inside prompts. It should land before scorecard/retry implementation.
+
+### Task 0A: Add Interview Capability Taxonomy
+
+**Files:**
+- Create: `apps/api/src/EnglishCoach.Domain/InterviewPractice/InterviewCapability.cs`
+- Modify: `apps/api/src/EnglishCoach.Contracts/InterviewPractice/InterviewContracts.cs`
+- Modify: `packages/contracts/src/interview.ts`
+- Test: `apps/api/tests/EnglishCoach.UnitTests/InterviewPractice/InterviewCapabilityTests.cs`
+
+**Capability Set V1:**
+
+- [ ] `SelfIntroduction`
+- [ ] `ProjectDeepDive`
+- [ ] `TechnicalTradeoff`
+- [ ] `BehavioralStar`
+- [ ] `ClientCommunication`
+- [ ] `RequirementClarification`
+- [ ] `IncidentConflictStory`
+- [ ] `WeakSpotRetry`
+- [ ] `EnglishClarity`
+
+**Acceptance Checklist:**
+
+- [ ] Capability names are stable domain values, not free-text model output.
+- [ ] Contracts expose the same values to frontend.
+- [ ] Unknown provider capability text maps to `WeakSpotRetry` or a validation error, never silent new enum values.
+- [ ] No readiness calculation uses string literals outside this taxonomy.
+
+**Verification Command:**
+
+```powershell
+node apps/api/scripts/run-dotnet.mjs test apps/api/tests/EnglishCoach.UnitTests/EnglishCoach.UnitTests.csproj --filter "FullyQualifiedName~InterviewCapabilityTests"
+pnpm --dir apps/web typecheck
+```
+
+### Task 0B: Store Question-Level Rubrics
+
+**Files:**
+- Create: `apps/api/src/EnglishCoach.Domain/InterviewPractice/InterviewQuestionRubric.cs`
+- Modify: `apps/api/src/EnglishCoach.Domain/InterviewPractice/InterviewTurn.cs`
+- Modify: `apps/api/src/EnglishCoach.Domain/InterviewPractice/InterviewSession.cs`
+- Modify: `apps/api/src/EnglishCoach.Application/InterviewPractice/StartInterviewSessionUseCase.cs`
+- Modify: `apps/api/src/EnglishCoach.Infrastructure/Persistence/Configurations/InterviewPracticeConfiguration.cs`
+- Add migration under: `apps/api/src/EnglishCoach.Infrastructure/Persistence/Migrations/`
+- Test: `apps/api/tests/EnglishCoach.UnitTests/InterviewPractice/InterviewSessionTests.cs`
+
+**Rubric Fields:**
+
+- [ ] `InterviewCapability Capability`
+- [ ] `List<string> SuccessCriteria`
+- [ ] `List<string> ExpectedEvidenceFromCv`
+- [ ] `List<string> JdSignals`
+- [ ] `string AnswerStructureHint`
+
+**Acceptance Checklist:**
+
+- [ ] Every interviewer question has a rubric stored with it.
+- [ ] The first question returned by start-session includes capability and criteria in the API response.
+- [ ] Provider-generated questions are rejected or repaired if they do not include a known capability.
+- [ ] Answer evaluation receives the stored rubric; it does not infer the rubric again from prompt text.
+
+**Verification Command:**
+
+```powershell
+node apps/api/scripts/run-dotnet.mjs test apps/api/tests/EnglishCoach.UnitTests/EnglishCoach.UnitTests.csproj --filter "FullyQualifiedName~InterviewSessionTests"
+node apps/api/scripts/run-dotnet.mjs test apps/api/tests/EnglishCoach.ApiTests/EnglishCoach.ApiTests.csproj --filter "FullyQualifiedName~InterviewEndpointsTests"
+```
+
+### Task 0C: Add Baseline and Privacy Boundaries
+
+**Files:**
+- Modify: `apps/api/src/EnglishCoach.Application/InterviewPractice/StartInterviewSessionUseCase.cs`
+- Modify: `apps/api/src/EnglishCoach.Contracts/InterviewPractice/InterviewContracts.cs`
+- Modify: `packages/contracts/src/interview.ts`
+- Modify: `apps/web/src/features/interview/InterviewSetup.tsx`
+- Test: `apps/api/tests/EnglishCoach.ApiTests/Interview/InterviewEndpointsTests.cs`
+
+**Checklist:**
+
+- [ ] Session request supports `mode = MockInterview | Baseline | FocusedDrill`.
+- [ ] Baseline mode uses a fixed capability spread and does not require prior readiness.
+- [ ] Response tells the UI whether CV/JD text is persisted and when it can be reused.
+- [ ] UI copy states that CV/JD and answers are saved for practice history unless deleted later.
+- [ ] No raw provider payload is stored as the privacy fallback for debugging.
 
 ---
 
@@ -135,11 +247,14 @@ CV + JD
   - `Reason`
   - `AttemptNumber`
   - `MaxAttempts`
+  - `CountsTowardReadiness`
+  - `EvaluationConfidence`
 
 - [ ] Add `InterviewRetryPolicy.Decide(scorecard, attemptNumber)` with these rules:
   - Accepted when `OverallScore >= 70`, `ContentFit >= 3`, and `EnglishClarity >= 3`.
   - Retry required when below threshold and `attemptNumber < 3`.
   - Accepted with remediation when below threshold and `attemptNumber >= 3`.
+  - Fallback/unverified evaluations can continue the conversation but do not count toward readiness.
 
 **Test Checklist:**
 
@@ -168,6 +283,8 @@ node apps/api/scripts/run-dotnet.mjs test apps/api/tests/EnglishCoach.UnitTests/
   - `int QuestionNumber`
   - `int AttemptNumber`
   - `bool CountsTowardProgress`
+  - `bool CountsTowardReadiness`
+  - `string EvaluationConfidence`
   - `string AnswerEvaluationJson`
 
 - [ ] For interviewer turns, `QuestionNumber` is the question position shown to the learner.
@@ -176,7 +293,9 @@ node apps/api/scripts/run-dotnet.mjs test apps/api/tests/EnglishCoach.UnitTests/
 
 - [ ] `LearnerAnswerCount` must count only learner turns where `CountsTowardProgress == true`.
 
-- [ ] Add `RecordEvaluatedLearnerAnswer(message, audioUrl, questionNumber, attemptNumber, countsTowardProgress, answerEvaluationJson)`.
+- [ ] Readiness queries must count only learner turns where `CountsTowardReadiness == true`.
+
+- [ ] Add `RecordEvaluatedLearnerAnswer(message, audioUrl, questionNumber, attemptNumber, countsTowardProgress, countsTowardReadiness, evaluationConfidence, answerEvaluationJson)`.
 
 - [ ] Keep `AddLearnerTurn` only if existing tests still need it; internally call the new method with accepted/default values.
 
@@ -186,6 +305,7 @@ node apps/api/scripts/run-dotnet.mjs test apps/api/tests/EnglishCoach.UnitTests/
 - [ ] An accepted attempt increases `LearnerAnswerCount`.
 - [ ] Question limit uses accepted answer count.
 - [ ] Evaluation JSON is stored on the learner turn.
+- [ ] Fallback evaluation does not count toward readiness.
 - [ ] Empty evaluation JSON is allowed only for legacy/default accepted answers.
 
 **Verification Command:**
@@ -248,6 +368,8 @@ public record InterviewPhraseCandidateResponse(
 - [ ] Add `string? RetryReason`.
 - [ ] Add `int AttemptNumber`.
 - [ ] Add `int MaxAttempts`.
+- [ ] Add `bool CountsTowardReadiness`.
+- [ ] Add `string EvaluationConfidence`.
 
 **Acceptance Checklist:**
 
@@ -307,6 +429,8 @@ pnpm --dir apps/web typecheck
   - `EnglishClarity = 3`
   - one evidence item: `"AI evaluation was unavailable; fallback coaching was used."`
   - one drill prompt asking user to answer with role, action, and result.
+  - `EvaluationConfidence = "Fallback"`
+  - `CountsTowardReadiness = false`
 
 **Test Checklist:**
 
@@ -348,6 +472,7 @@ pnpm --dir apps/web typecheck
 - [ ] Third low attempt returns accepted progress with remediation.
 - [ ] Accepted answer returns next question.
 - [ ] Provider timeout returns fallback scorecard, not HTTP 500.
+- [ ] Provider fallback does not improve readiness.
 
 **Verification Commands:**
 
@@ -472,6 +597,7 @@ pnpm --dir apps/web build
 - [ ] A dimension is `NeedsPractice` when average score is `60..74`.
 - [ ] A dimension is `Weak` when average score is `< 60`.
 - [ ] A dimension is `NotAttempted` when no accepted answer exists.
+- [ ] Fallback/unverified answers are excluded from score averages.
 - [ ] Store formula label as `interview-readiness-v1` in response.
 
 **Response Shape:**
@@ -502,6 +628,35 @@ pnpm --dir apps/web build
 - [ ] Each dimension shows status, score, and evidence.
 - [ ] Weak dimensions link to retry drills or review items.
 - [ ] Copy is direct: `Ready`, `Needs practice`, `Weak`, `Not attempted`.
+
+### Task 10B: Progress Over Sessions
+
+**Files:**
+- Create: `apps/api/src/EnglishCoach.Application/InterviewPractice/GetInterviewProgressQuery.cs`
+- Modify: `apps/api/src/EnglishCoach.Contracts/InterviewPractice/InterviewContracts.cs`
+- Modify: `packages/contracts/src/interview.ts`
+- Modify: `apps/api/src/EnglishCoach.Api/Program.cs`
+- Create: `apps/web/src/features/interview/InterviewProgressTrend.tsx`
+- Modify: `apps/web/src/features/interview/InterviewFeedback.tsx`
+- Test: `apps/api/tests/EnglishCoach.ApiTests/Interview/InterviewEndpointsTests.cs`
+
+**Backend Checklist:**
+
+- [ ] Endpoint: `GET /me/interview/progress`.
+- [ ] Group accepted, readiness-eligible scorecards by capability.
+- [ ] Return latest score, best score, session count, attempt count, and most repeated weakness per capability.
+- [ ] Exclude fallback/unverified evaluations.
+- [ ] Return `formulaVersion = interview-progress-v1`.
+
+**UI Checklist:**
+
+- [ ] Show progress trend after final feedback or on setup screen when history exists.
+- [ ] Show "No verified data yet" instead of fake progress when only fallback evaluations exist.
+- [ ] Link the weakest capability to a focused drill start action.
+
+**Smallest Testable Slice:**
+
+- [ ] Two finalized sessions with `ProjectDeepDive` scorecards return a visible latest-vs-best trend.
 
 ---
 
@@ -563,6 +718,8 @@ pnpm --dir apps/web build
 - [ ] Store model id used for evaluation.
 - [ ] Store prompt template version.
 - [ ] Store fallback flag.
+- [ ] Store evaluation confidence.
+- [ ] Store readiness eligibility.
 - [ ] Do not store raw provider payload.
 
 ### Task 14: Failure Mode QA
@@ -586,6 +743,8 @@ pnpm --dir apps/web build
 
 ### Product Value
 
+- [ ] Interview questions are tied to a stable capability map.
+- [ ] Each question has explicit success criteria from CV/JD.
 - [ ] A user receives a scorecard after every answer.
 - [ ] A weak answer triggers retry instead of silently moving on.
 - [ ] User sees exact evidence from their own answer.
@@ -593,12 +752,14 @@ pnpm --dir apps/web build
 - [ ] User can add mistakes to notebook.
 - [ ] User can add phrases to review.
 - [ ] User sees readiness by interview capability.
+- [ ] User sees progress by capability across sessions.
 - [ ] User can follow a 7-day plan generated from CV/JD.
 
 ### Architecture
 
 - [ ] Retry/pass decision lives in domain/application code, not in prompt text.
 - [ ] Provider adapter only generates normalized evidence.
+- [ ] Fallback evaluations are marked and excluded from readiness.
 - [ ] Controllers remain thin.
 - [ ] All mutations go through use cases.
 - [ ] Contracts are explicit and mirrored in frontend types.
@@ -631,20 +792,24 @@ pnpm --dir apps/web build
 
 ## Suggested Execution Order
 
-1. Task 1
-2. Task 2
-3. Task 3
-4. Task 4
-5. Task 5
-6. Task 6
-7. Task 7
-8. Task 8
-9. Task 9
-10. Task 10
-11. Task 11
-12. Task 12
-13. Task 13
-14. Task 14
+1. Task 0A
+2. Task 0B
+3. Task 0C
+4. Task 1
+5. Task 2
+6. Task 3
+7. Task 4
+8. Task 5
+9. Task 6
+10. Task 7
+11. Task 8
+12. Task 9
+13. Task 10
+14. Task 10B
+15. Task 11
+16. Task 12
+17. Task 13
+18. Task 14
 
 Stop after Task 6 for the first usable product checkpoint. At that point the app already becomes meaningfully better than a ChatGPT prompt because it has scorecard, evidence, and retry gating.
 
