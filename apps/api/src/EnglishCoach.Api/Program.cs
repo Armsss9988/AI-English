@@ -88,6 +88,10 @@ else
     // Interview Practice AI Providers (swapped to real NIM/OpenAI adapters)
     builder.Services.AddScoped<EnglishCoach.Application.Ports.IInterviewAnalysisService, EnglishCoach.Infrastructure.AI.OpenAI.NimInterviewAnalysisService>();
     builder.Services.AddScoped<EnglishCoach.Application.Ports.IInterviewConductorService, EnglishCoach.Infrastructure.AI.OpenAI.NimInterviewConductorService>();
+    builder.Services.AddScoped<EnglishCoach.Application.Ports.IAdaptiveInterviewerService, EnglishCoach.Infrastructure.AI.OpenAI.NimAdaptiveInterviewerService>();
+    builder.Services.AddScoped<EnglishCoach.Application.Ports.ITextToSpeechService, EnglishCoach.Infrastructure.AI.OpenAI.NimTextToSpeechService>();
+    builder.Services.AddScoped<EnglishCoach.Application.Ports.ISpeechToTextService, EnglishCoach.Infrastructure.AI.OpenAI.NimSpeechToTextService>();
+    builder.Services.AddScoped<EnglishCoach.Application.Ports.IPronunciationAssessmentService, EnglishCoach.Infrastructure.AI.OpenAI.NimPronunciationAssessmentService>();
 }
 builder.Services.AddScoped<EnglishCoach.Application.Ports.ICvTextExtractor, EnglishCoach.Infrastructure.AI.Pdf.PdfCvTextExtractor>();
 
