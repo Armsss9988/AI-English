@@ -18,7 +18,11 @@
     "test:schemathesis": "node packages/tooling/scripts/run-schemathesis.mjs",
     "test:unit": "node apps/api/scripts/run-dotnet.mjs test apps/api/tests/EnglishCoach.UnitTests/EnglishCoach.UnitTests.csproj --nologo -maxcpucount:1 -p:UseSharedCompilation=false",
     "test:workspace": "turbo run test",
-    "typecheck": "turbo run typecheck && node apps/api/scripts/run-dotnet.mjs build apps/api/EnglishCoach.sln --nologo -maxcpucount:1 -p:UseSharedCompilation=false"
+    "typecheck": "turbo run typecheck && node apps/api/scripts/run-dotnet.mjs build apps/api/EnglishCoach.sln --nologo -maxcpucount:1 -p:UseSharedCompilation=false",
+    "db:reset": "pwsh -File scripts/dev-reset.ps1",
+    "db:seed": "pwsh -File scripts/dev-seed.ps1",
+    "check": "pwsh -File scripts/check-local.ps1",
+    "release-check": "pwsh -File scripts/release-check.ps1"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

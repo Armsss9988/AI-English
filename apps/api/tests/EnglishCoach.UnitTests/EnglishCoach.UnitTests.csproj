@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
@@ -25,6 +25,7 @@
     <ProjectReference Include="..\..\src\EnglishCoach.Application\EnglishCoach.Application.csproj" />
     <ProjectReference Include="..\..\src\EnglishCoach.Contracts\EnglishCoach.Contracts.csproj" />
     <ProjectReference Include="..\..\src\EnglishCoach.SharedKernel\EnglishCoach.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\src\EnglishCoach.Infrastructure\EnglishCoach.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

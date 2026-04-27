@@ -6,7 +6,7 @@ import { InterviewChat } from "@/features/interview/InterviewChat";
 
 type PageState =
   | { phase: "setup" }
-  | { phase: "interview"; profileId: string; jdText: string; interviewType: string };
+  | { phase: "interview"; profileId: string; jdText: string; interviewType: string; interviewMode: string };
 
 export default function InterviewPage() {
   const [state, setState] = useState<PageState>({ phase: "setup" });
@@ -17,6 +17,7 @@ export default function InterviewPage() {
         profileId={state.profileId}
         jdText={state.jdText}
         interviewType={state.interviewType}
+        interviewMode={state.interviewMode}
         onBack={() => setState({ phase: "setup" })}
       />
     );
@@ -24,8 +25,8 @@ export default function InterviewPage() {
 
   return (
     <InterviewSetup
-      onReady={(profileId, jdText, interviewType) =>
-        setState({ phase: "interview", profileId, jdText, interviewType })
+      onReady={(profileId, jdText, interviewType, interviewMode) =>
+        setState({ phase: "interview", profileId, jdText, interviewType, interviewMode })
       }
     />
   );

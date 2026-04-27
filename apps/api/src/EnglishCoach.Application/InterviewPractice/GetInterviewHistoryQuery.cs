@@ -22,6 +22,7 @@ public sealed class GetInterviewHistoryQuery
             .Select(s => new EnglishCoach.Contracts.InterviewPractice.InterviewHistoryItem(
                 Guid.Parse(s.Id),
                 s.Type.ToString(),
+                s.Mode.ToString(),
                 s.State.ToString(),
                 s.PlannedQuestionCount,
                 s.LearnerAnswerCount,

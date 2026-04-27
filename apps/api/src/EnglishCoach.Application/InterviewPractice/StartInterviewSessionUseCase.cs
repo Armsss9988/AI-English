@@ -105,10 +105,14 @@ public sealed class StartInterviewSessionUseCase
             Guid.Parse(sessionId),
             session.State.ToString(),
             interviewType.ToString(),
+            session.Mode.ToString(),
             plannedQuestionCount,
             firstQuestion.Question,
             firstQuestion.Category,
-            firstQuestion.CoachingHint
+            null,
+            null,
+            firstQuestion.CoachingHint,
+            null
         );
     }
 

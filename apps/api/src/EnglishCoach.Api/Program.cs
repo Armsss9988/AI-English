@@ -73,6 +73,10 @@ if (string.IsNullOrWhiteSpace(openAiApiKey) && builder.Environment.IsDevelopment
     builder.Services.AddScoped<EnglishCoach.Application.Ports.IRoleplayResponseService, EnglishCoach.Infrastructure.AI.FakeAdapters.FakeRoleplayService>();
     builder.Services.AddScoped<EnglishCoach.Application.Ports.IInterviewAnalysisService, EnglishCoach.Infrastructure.AI.FakeAdapters.FakeInterviewAnalysisService>();
     builder.Services.AddScoped<EnglishCoach.Application.Ports.IInterviewConductorService, EnglishCoach.Infrastructure.AI.FakeAdapters.FakeInterviewConductorService>();
+    builder.Services.AddScoped<EnglishCoach.Application.Ports.IAdaptiveInterviewerService, EnglishCoach.Infrastructure.AI.FakeAdapters.FakeAdaptiveInterviewerService>();
+    builder.Services.AddScoped<EnglishCoach.Application.Ports.ITextToSpeechService, EnglishCoach.Infrastructure.AI.FakeAdapters.FakeTextToSpeechService>();
+    builder.Services.AddScoped<EnglishCoach.Application.Ports.ISpeechToTextService, EnglishCoach.Infrastructure.AI.FakeAdapters.FakeSpeechToTextService>();
+    builder.Services.AddScoped<EnglishCoach.Application.Ports.IPronunciationAssessmentService, EnglishCoach.Infrastructure.AI.FakeAdapters.FakePronunciationAssessmentService>();
 }
 else
 {
@@ -96,6 +100,16 @@ builder.Services.AddScoped<StartInterviewSessionUseCase>();
 builder.Services.AddScoped<AnswerInterviewQuestionUseCase>();
 builder.Services.AddScoped<FinalizeInterviewUseCase>();
 builder.Services.AddScoped<GetInterviewHistoryQuery>();
+builder.Services.AddScoped<GenerateInterviewerTurnUseCase>();
+builder.Services.AddScoped<UploadLearnerAnswerAudioUseCase>();
+builder.Services.AddScoped<ConfirmLearnerTranscriptUseCase>();
+builder.Services.AddScoped<EvaluateLearnerAnswerUseCase>();
+builder.Services.AddScoped<GetInterviewSessionQuery>();
+
+// Local audio storage
+var audioStoragePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "interview-audio");
+builder.Services.AddSingleton<EnglishCoach.Application.Ports.IInterviewAudioStorage>(
+    new EnglishCoach.Infrastructure.Storage.LocalInterviewAudioStorage(audioStoragePath));
 
 builder.Services.AddSingleton<IClock, SystemClock>();
 
@@ -128,6 +142,23 @@ app.MapGet("/health", () =>
     return Results.Ok(new HealthResponse("ok"));
 })
 .WithName("GetHealth")
+.WithOpenApi();
+
+// ── T01: Personal-mode identity metadata ──
+app.MapGet("/me/identity", (HttpContext httpContext) =>
+{
+    var userId = RequireUserId(httpContext);
+    var isAdmin = httpContext.Request.Headers.TryGetValue("X-User-Role", out var role)
+        && role.ToString().Equals("Admin", StringComparison.OrdinalIgnoreCase);
+
+    return Results.Ok(new EnglishCoach.Contracts.Identity.PersonalModeIdentityResponse(
+        UserId: userId ?? "unknown",
+        Mode: "personal-local",
+        IsAdmin: isAdmin,
+        Note: "Production auth is intentionally deferred. See docs/PERSONAL-MODE.md."
+    ));
+})
+.WithName("GetIdentity")
 .WithOpenApi();
 
 app.MapGet("/me/profile", async (
@@ -715,6 +746,104 @@ app.MapGet("/me/interview/sessions", async (
 .WithName("GetInterviewHistory")
 .WithOpenApi();
 
+// ── T03: Generate next adaptive interviewer turn ──
+app.MapPost("/me/interview/sessions/{sessionId}/next-turn", async (
+    HttpContext httpContext,
+    Guid sessionId,
+    GenerateInterviewerTurnUseCase useCase,
+    CancellationToken cancellationToken) =>
+{
+    var userId = RequireUserId(httpContext);
+    if (userId is null) return Results.Unauthorized();
+    var response = await useCase.ExecuteAsync(sessionId.ToString(), userId, cancellationToken);
+    return Results.Ok(response);
+})
+.WithName("GenerateInterviewerTurn")
+.WithOpenApi();
+
+// ── T05: Upload learner audio answer ──
+app.MapPost("/me/interview/sessions/{sessionId}/upload-audio", async (
+    HttpContext httpContext,
+    Guid sessionId,
+    UploadLearnerAnswerAudioUseCase useCase,
+    CancellationToken cancellationToken) =>
+{
+    var userId = RequireUserId(httpContext);
+    if (userId is null) return Results.Unauthorized();
+
+    if (!httpContext.Request.HasFormContentType)
+        return Results.BadRequest(new { message = "Audio file is required." });
+
+    var form = await httpContext.Request.ReadFormAsync(cancellationToken);
+    var file = form.Files.GetFile("audio");
+    if (file is null || file.Length == 0)
+        return Results.BadRequest(new { message = "Audio file is required." });
+    if (file.Length > 50 * 1024 * 1024)
+        return Results.BadRequest(new { message = "Audio file too large (max 50MB)." });
+
+    await using var stream = file.OpenReadStream();
+    using var ms = new MemoryStream();
+    await stream.CopyToAsync(ms, cancellationToken);
+
+    int.TryParse(form["durationMs"], out var durationMs);
+    var response = await useCase.ExecuteAsync(
+        sessionId.ToString(), userId, ms.ToArray(),
+        file.ContentType ?? "audio/webm", durationMs, cancellationToken);
+    return Results.Ok(response);
+})
+.WithName("UploadLearnerAudio")
+.WithOpenApi();
+
+// ── T06: Confirm transcript ──
+app.MapPost("/me/interview/sessions/{sessionId}/turns/{turnId}/confirm-transcript", async (
+    HttpContext httpContext,
+    Guid sessionId,
+    string turnId,
+    EnglishCoach.Contracts.InterviewPractice.ConfirmTranscriptRequest request,
+    ConfirmLearnerTranscriptUseCase useCase,
+    CancellationToken cancellationToken) =>
+{
+    var userId = RequireUserId(httpContext);
+    if (userId is null) return Results.Unauthorized();
+    await useCase.ExecuteAsync(
+        sessionId.ToString(), userId, turnId,
+        request.ConfirmedTranscript, request.LearnerEdited, cancellationToken);
+    return Results.Ok();
+})
+.WithName("ConfirmTranscript")
+.WithOpenApi();
+
+// ── T08: Evaluate learner answer ──
+app.MapPost("/me/interview/sessions/{sessionId}/turns/{turnId}/evaluate", async (
+    HttpContext httpContext,
+    Guid sessionId,
+    string turnId,
+    EvaluateLearnerAnswerUseCase useCase,
+    CancellationToken cancellationToken) =>
+{
+    var userId = RequireUserId(httpContext);
+    if (userId is null) return Results.Unauthorized();
+    var result = await useCase.ExecuteAsync(sessionId.ToString(), userId, turnId, cancellationToken);
+    return Results.Ok(result);
+})
+.WithName("EvaluateLearnerAnswer")
+.WithOpenApi();
+
+// ── T10: Get session detail ──
+app.MapGet("/me/interview/sessions/{sessionId}", async (
+    HttpContext httpContext,
+    Guid sessionId,
+    GetInterviewSessionQuery query,
+    CancellationToken cancellationToken) =>
+{
+    var userId = RequireUserId(httpContext);
+    if (userId is null) return Results.Unauthorized();
+    var response = await query.ExecuteAsync(sessionId.ToString(), userId, cancellationToken);
+    return response is null ? Results.NotFound() : Results.Ok(response);
+})
+.WithName("GetInterviewSessionDetail")
+.WithOpenApi();
+
 var adminGroup = app.MapGroup("/admin")
     .AddEndpointFilter(async (invocationContext, next) =>
     {
@@ -771,6 +900,11 @@ DatabaseCurriculumSeeder.SeedDatabaseAsync(app.Services).GetAwaiter().GetResult(
 
 app.Run();
 
+/// <summary>
+/// Personal-local mode identity resolver.
+/// In local development, a stable default user ID is returned when no X-User-Id header is provided.
+/// This is NOT production security — see docs/PERSONAL-MODE.md for details.
+/// </summary>
 static string? RequireUserId(HttpContext httpContext)
 {
     if (httpContext.Request.Headers.TryGetValue("X-User-Id", out var values))
@@ -780,7 +914,7 @@ static string? RequireUserId(HttpContext httpContext)
             return userId;
     }
     
-    // For local UI testing without real auth, return a default mock user ID
+    // Personal-local mode: stable default user for single-learner usage
     return "00000000-0000-0000-0000-000000000001";
 }
 

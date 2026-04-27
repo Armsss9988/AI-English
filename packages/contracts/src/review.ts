@@ -14,6 +14,18 @@ export interface CompleteReviewRequest {
   outcome: ReviewOutcome;
 }
 
+export interface EnsureReviewItemRequest {
+  userId?: string;
+  itemId: string;
+  reviewTrack: "phrase" | "error" | "scenario";
+  displayText: string;
+  displaySubtitle?: string | null;
+}
+
+export interface EnsureReviewItemResponse {
+  reviewItemId: string;
+}
+
 export interface DueReviewItem {
   reviewItemId: string;
   itemId: string;

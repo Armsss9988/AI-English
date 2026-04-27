@@ -5,17 +5,28 @@ import {
   SubmitSpeakingEvaluationResponse,
 } from "@english-coach/contracts";
 import { apiClient } from "../apiClient";
+import { getPhrases } from "./curriculum";
 
 export const getDrillPrompt = async (
   id: string
 ): Promise<SpeakingDrillPrompt> => {
-  // Mocking the drill prompt since backend doesn't have an explicit drill endpoint yet
-  // It relies on learning-content/scenarios
+  const phrases = await getPhrases();
+  const phrase = phrases.find((item) => item.id === id) ?? phrases[0];
+
+  if (phrase) {
+    return {
+      id: phrase.id,
+      context: phrase.meaning,
+      prompt: `Write a client-ready response that naturally uses: "${phrase.content}"`,
+      suggestedPhrases: [phrase.content],
+    };
+  }
+
   return {
     id,
     context: "You are answering a question from a client.",
-    prompt: "Can you explain the timeline for the next milestone?",
-    suggestedPhrases: ["We expect to...", "By the end of..."],
+    prompt: "Write a clear update for an English-speaking client.",
+    suggestedPhrases: [],
   };
 };
 

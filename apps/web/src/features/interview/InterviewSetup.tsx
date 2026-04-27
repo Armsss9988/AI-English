@@ -6,7 +6,7 @@ import { getLatestCvProfile, uploadCv, uploadCvFile } from "@/lib/api/interview"
 import styles from "./interview.module.css";
 
 interface InterviewSetupProps {
-  onReady: (profileId: string, jdText: string, interviewType: string) => void;
+  onReady: (profileId: string, jdText: string, interviewType: string, interviewMode: string) => void;
 }
 
 const INTERVIEW_TYPES = [
@@ -37,6 +37,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onReady }) => {
   const [cvText, setCvText] = useState("");
   const [jdText, setJdText] = useState("");
   const [interviewType, setInterviewType] = useState("Mixed");
+  const [interviewMode, setInterviewMode] = useState("TrainingInterview");
   const [profileId, setProfileId] = useState<string | null>(null);
   const [cvAnalysis, setCvAnalysis] = useState<string | null>(null);
   const [cvFile, setCvFile] = useState<File | null>(null);
@@ -99,7 +100,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onReady }) => {
 
   const handleStartInterview = () => {
     if (!profileId || !jdText.trim()) return;
-    onReady(profileId, jdText, interviewType);
+    onReady(profileId, jdText, interviewType, interviewMode);
   };
 
   return (
@@ -223,6 +224,26 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onReady }) => {
                   <div className={styles.typeCardDesc}>{type.desc}</div>
                 </div>
               ))}
+            </div>
+          </div>
+
+          <div className={styles.formSection}>
+            <div className={styles.sectionLabel}>🎓 Interview Mode</div>
+            <div className={styles.typeSelector}>
+              <div
+                className={`${styles.typeCard} ${interviewMode === "TrainingInterview" ? styles.selected : ""}`}
+                onClick={() => setInterviewMode("TrainingInterview")}
+              >
+                <div className={styles.typeCardTitle}>🎓 Training</div>
+                <div className={styles.typeCardDesc}>Hints, scorecard, retry drills</div>
+              </div>
+              <div
+                className={`${styles.typeCard} ${interviewMode === "RealInterview" ? styles.selected : ""}`}
+                onClick={() => setInterviewMode("RealInterview")}
+              >
+                <div className={styles.typeCardTitle}>🎤 Real Interview</div>
+                <div className={styles.typeCardDesc}>No hints during session</div>
+              </div>
             </div>
           </div>
 

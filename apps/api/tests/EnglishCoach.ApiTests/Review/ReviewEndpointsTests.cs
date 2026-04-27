@@ -88,4 +88,32 @@ public sealed class ReviewEndpointsTests : IAsyncLifetime
         var attempts = await dbContext.ReviewAttempts.CountAsync();
         Assert.Equal(1, attempts);
     }
+
+    [Fact]
+    public async Task EnsureReviewItem_Creates_Due_Item_For_Current_User()
+    {
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-User-Id", "user-ensure-1");
+
+        var response = await client.PostAsJsonAsync(
+            "/me/reviews/ensure",
+            new EnsureReviewItemRequest(
+                UserId: "ignored-client-value",
+                ItemId: "phrase-client-ready",
+                ReviewTrack: "phrase",
+                DisplayText: "Could you clarify the expected behavior?",
+                DisplaySubtitle: "Hay lam ro hanh vi mong doi"));
+
+        response.EnsureSuccessStatusCode();
+
+        var payload = await response.Content.ReadFromJsonAsync<EnsureReviewItemResponse>();
+        Assert.NotNull(payload);
+        Assert.False(string.IsNullOrWhiteSpace(payload!.ReviewItemId));
+
+        var queue = await client.GetFromJsonAsync<GetDueReviewItemsResponse>("/me/reviews/due");
+        Assert.NotNull(queue);
+        var dueItem = Assert.Single(queue!.Items);
+        Assert.Equal("phrase-client-ready", dueItem.ItemId);
+        Assert.Equal("Could you clarify the expected behavior?", dueItem.DisplayText);
+    }
 }

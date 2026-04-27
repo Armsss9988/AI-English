@@ -1,7 +1,16 @@
 import React from "react";
 import { SpeakingDrill } from "@/features/speaking/SpeakingDrill";
 
-export default function SpeakingPage() {
+type SpeakingPageProps = {
+  searchParams?: Promise<{ drillId?: string }>;
+};
+
+export default async function SpeakingPage({
+  searchParams,
+}: SpeakingPageProps) {
+  const params = await searchParams;
+  const drillId = params?.drillId ?? "";
+
   return (
     <main
       style={{
@@ -28,7 +37,7 @@ export default function SpeakingPage() {
         </p>
       </header>
 
-      <SpeakingDrill drillId="11111111-1111-1111-1111-111111111111" />
+      <SpeakingDrill drillId={drillId} />
     </main>
   );
 }

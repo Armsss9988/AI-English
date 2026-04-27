@@ -1,7 +1,16 @@
 import React from "react";
 import { RoleplayChat } from "@/features/roleplay/RoleplayChat";
 
-export default function RoleplayPage() {
+type RoleplayPageProps = {
+  searchParams?: Promise<{ scenarioId?: string }>;
+};
+
+export default async function RoleplayPage({
+  searchParams,
+}: RoleplayPageProps) {
+  const params = await searchParams;
+  const scenarioId = params?.scenarioId ?? "";
+
   return (
     <main
       style={{
@@ -13,7 +22,7 @@ export default function RoleplayPage() {
         padding: "40px",
       }}
     >
-      <RoleplayChat scenarioId="22222222-2222-2222-2222-222222222222" />
+      <RoleplayChat scenarioId={scenarioId} />
     </main>
   );
 }

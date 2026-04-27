@@ -1,28 +1,42 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { RoleplayTurn, RoleplaySessionResponse } from "@english-coach/contracts";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  RoleplayTurn,
+  RoleplaySessionResponse,
+} from "@english-coach/contracts";
 import { Button } from "@english-coach/ui";
 import {
   recordTurn,
   finalizeRoleplay,
   startRoleplay,
 } from "@/lib/api/roleplay";
+import { getScenarios } from "@/lib/api/curriculum";
 import styles from "./roleplay.module.css";
 
-export const RoleplayChat: React.FC<{ scenarioId: string }> = ({
+export const RoleplayChat: React.FC<{ scenarioId?: string }> = ({
   scenarioId,
 }) => {
   const [input, setInput] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [scenarioTitle, setScenarioTitle] = useState<string>("");
   const [turns, setTurns] = useState<RoleplayTurn[]>([]);
-  const [finalSession, setFinalSession] = useState<RoleplaySessionResponse | null>(null);
+  const [finalSession, setFinalSession] =
+    useState<RoleplaySessionResponse | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const scenariosQuery = useQuery({
+    queryKey: ["roleplay-scenarios-for-chat"],
+    queryFn: () => getScenarios(),
+    enabled: !scenarioId,
+  });
+
+  const selectedScenarioId = scenarioId || scenariosQuery.data?.[0]?.id;
 
   useEffect(() => {
-    startRoleplay(scenarioId).then((res) => {
+    if (!selectedScenarioId) return;
+
+    startRoleplay(selectedScenarioId).then((res) => {
       setSessionId(res.sessionId);
       setScenarioTitle(res.scenarioTitle);
       setTurns([
@@ -34,7 +48,7 @@ export const RoleplayChat: React.FC<{ scenarioId: string }> = ({
         },
       ]);
     });
-  }, [scenarioId]);
+  }, [selectedScenarioId]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -150,4 +164,3 @@ export const RoleplayChat: React.FC<{ scenarioId: string }> = ({
     </div>
   );
 };
-

@@ -4,6 +4,7 @@ namespace EnglishCoach.Domain.InterviewPractice;
 /// Core aggregate for a mock interview session. 
 /// Contains JD analysis, turn-by-turn conversation, and final feedback.
 /// State machine: Created → Analyzing → Ready → Active → AwaitingFeedback → Finalized → Archived
+/// InterviewMode: RealInterview (no hints) or TrainingInterview (hints, retry, scorecard).
 /// </summary>
 public sealed class InterviewSession
 {
@@ -35,6 +36,7 @@ public sealed class InterviewSession
     public string InterviewPlan { get; private set; }
 
     public InterviewType Type { get; private set; }
+    public InterviewMode Mode { get; private set; }
     public InterviewSessionState State { get; private set; }
 
     /// <summary>
@@ -53,7 +55,8 @@ public sealed class InterviewSession
         string learnerId,
         string interviewProfileId,
         string jdText,
-        InterviewType type)
+        InterviewType type,
+        InterviewMode mode = InterviewMode.TrainingInterview)
     {
         return new InterviewSession
         {
@@ -62,6 +65,7 @@ public sealed class InterviewSession
             InterviewProfileId = RequireNonEmpty(interviewProfileId, nameof(interviewProfileId)),
             JdText = RequireNonEmpty(jdText, nameof(jdText)),
             Type = type,
+            Mode = mode,
             State = InterviewSessionState.Created,
             CreatedAtUtc = DateTimeOffset.UtcNow,
             UpdatedAtUtc = DateTimeOffset.UtcNow
@@ -105,6 +109,35 @@ public sealed class InterviewSession
         }
 
         UpdatedAtUtc = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>
+    /// Add an adaptive interviewer turn with rich metadata.
+    /// </summary>
+    public InterviewTurn AddAdaptiveInterviewerTurn(
+        string message,
+        InterviewTurnType turnType,
+        InterviewCapability targetCapability,
+        InterviewQuestionRubric? rubric,
+        InterviewTurnDecision? decision,
+        InterviewVerificationStatus verificationStatus)
+    {
+        if (State != InterviewSessionState.Ready && State != InterviewSessionState.Active)
+            throw new InvalidOperationException($"Cannot add interviewer turn in state {State}.");
+
+        var turnOrder = _turns.Count + 1;
+        var turn = InterviewTurn.CreateInterviewerTurn(
+            Id, message, turnOrder, turnType, targetCapability,
+            rubric, decision, verificationStatus);
+        _turns.Add(turn);
+
+        if (State == InterviewSessionState.Ready)
+        {
+            State = InterviewSessionState.Active;
+        }
+
+        UpdatedAtUtc = DateTimeOffset.UtcNow;
+        return turn;
     }
 
     public void AddLearnerTurn(string message, string audioUrl = "")

@@ -44,9 +44,12 @@ public sealed class AnswerInterviewQuestionUseCase
                 null,
                 null,
                 null,
+                null,
+                null,
                 true,
                 session.LearnerAnswerCount,
-                session.PlannedQuestionCount
+                session.PlannedQuestionCount,
+                null
             );
         }
 
@@ -91,10 +94,13 @@ public sealed class AnswerInterviewQuestionUseCase
         return new EnglishCoach.Contracts.InterviewPractice.AnswerQuestionResponse(
             nextQuestion.Question,
             nextQuestion.Category,
+            null,
+            null,
             nextQuestion.CoachingHint,
             nextQuestion.IsLastQuestion,
             session.LearnerAnswerCount,
-            session.PlannedQuestionCount
+            session.PlannedQuestionCount,
+            null
         );
     }
 
