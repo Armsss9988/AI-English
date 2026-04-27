@@ -483,7 +483,7 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
                   <audio 
                     controls 
                     autoPlay={turn.id === turns[turns.length - 1].id} 
-                    src={`/api${turn.audioUrl}`} 
+                    src={`${process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5237"}${turn.audioUrl}`} 
                     style={{ height: "30px", width: "100%" }}
                   />
                 </div>
