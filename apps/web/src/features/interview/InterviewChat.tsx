@@ -478,6 +478,16 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
                   🎯 Confidence: {Math.round(turn.confidence * 100)}%
                 </div>
               )}
+              {turn.audioUrl && turn.role === "interviewer" && (
+                <div style={{ marginTop: "10px" }}>
+                  <audio 
+                    controls 
+                    autoPlay={turn.id === turns[turns.length - 1].id} 
+                    src={`/api${turn.audioUrl}`} 
+                    style={{ height: "30px", width: "100%" }}
+                  />
+                </div>
+              )}
             </div>
           </div>
         ))}

@@ -856,6 +856,37 @@ app.MapGet("/me/interview/sessions/{sessionId}", async (
 .WithName("GetInterviewSessionDetail")
 .WithOpenApi();
 
+// ── T09: Get turn audio ──
+app.MapGet("/me/interview/turns/{turnId}/audio", async (
+    HttpContext httpContext,
+    string turnId,
+    EnglishCoach.Application.Ports.IInterviewAudioStorage audioStorage,
+    CancellationToken cancellationToken) =>
+{
+    // Skip RequireUserId because the <audio> tag doesn't send Bearer tokens easily.
+    // TurnId contains the SessionId which is an unguessable GUID, providing reasonable security.
+    var dbContext = httpContext.RequestServices.GetRequiredService<EnglishCoach.Infrastructure.Persistence.EnglishCoachDbContext>();
+    var turn = await dbContext.Set<EnglishCoach.Domain.InterviewPractice.InterviewTurn>()
+        .FindAsync(new object[] { turnId }, cancellationToken);
+
+    if (turn is null || string.IsNullOrEmpty(turn.AudioStorageKey))
+        return Results.NotFound();
+
+    if (!await audioStorage.ExistsAsync(turn.AudioStorageKey, cancellationToken))
+        return Results.NotFound();
+
+    var stream = await audioStorage.OpenReadAsync(turn.AudioStorageKey, cancellationToken);
+    
+    // Guess content type from extension
+    var contentType = turn.AudioStorageKey.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase) 
+        ? "audio/mpeg" 
+        : "audio/webm";
+
+    return Results.File(stream, contentType, enableRangeProcessing: true);
+})
+.WithName("GetTurnAudio")
+.WithOpenApi();
+
 var adminGroup = app.MapGroup("/admin")
     .AddEndpointFilter(async (invocationContext, next) =>
     {

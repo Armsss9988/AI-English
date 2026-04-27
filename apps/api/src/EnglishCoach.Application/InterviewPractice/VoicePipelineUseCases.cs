@@ -34,8 +34,8 @@ public sealed class UploadLearnerAnswerAudioUseCase
             throw new InvalidOperationException($"Cannot upload audio in state {session.State}.");
 
         // Create learner turn
-        var turnOrder = session.Turns.Count + 1;
-        var turn = InterviewTurn.CreateLearnerTurn(sessionId, string.Empty, turnOrder);
+        session.AddLearnerTurn(string.Empty, string.Empty);
+        var turn = session.Turns.Last();
 
         // Save audio
         var storageResult = await _audioStorage.SaveAsync(new AudioStorageRequest
@@ -64,8 +64,8 @@ public sealed class UploadLearnerAnswerAudioUseCase
             turn.SetTranscript(sttResult.Transcript, sttResult.Confidence);
         }
 
-        // Add the turn to session via domain method
-        session.AddLearnerTurn(turn.GetEvaluableTranscript());
+        // Turn is already added to session.Turns, we just update it.
+
 
         await _sessionRepository.UpdateAsync(session, ct);
 

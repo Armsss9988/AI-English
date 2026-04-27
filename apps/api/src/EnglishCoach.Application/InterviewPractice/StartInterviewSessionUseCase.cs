@@ -12,17 +12,23 @@ public sealed class StartInterviewSessionUseCase
     private readonly IInterviewSessionRepository _sessionRepository;
     private readonly IInterviewAnalysisService _analysisService;
     private readonly IInterviewConductorService _conductorService;
+    private readonly ITextToSpeechService _ttsService;
+    private readonly IInterviewAudioStorage _audioStorage;
 
     public StartInterviewSessionUseCase(
         IInterviewProfileRepository profileRepository,
         IInterviewSessionRepository sessionRepository,
         IInterviewAnalysisService analysisService,
-        IInterviewConductorService conductorService)
+        IInterviewConductorService conductorService,
+        ITextToSpeechService ttsService,
+        IInterviewAudioStorage audioStorage)
     {
         _profileRepository = profileRepository;
         _sessionRepository = sessionRepository;
         _analysisService = analysisService;
         _conductorService = conductorService;
+        _ttsService = ttsService;
+        _audioStorage = audioStorage;
     }
 
     public async Task<EnglishCoach.Contracts.InterviewPractice.StartInterviewResponse> ExecuteAsync(
@@ -99,7 +105,13 @@ public sealed class StartInterviewSessionUseCase
 
         session.AddInterviewerTurn(firstQuestion.Question, category);
 
+        // Generate TTS for the first question
+        var turn = session.Turns.Last();
+        await TryGenerateTtsAsync(turn, firstQuestion.Question, ct);
+
         await _sessionRepository.CreateAsync(session, ct);
+
+        var audioUrl = turn.AudioStorageKey.Length > 0 ? $"/me/interview/turns/{turn.Id}/audio" : null;
 
         return new EnglishCoach.Contracts.InterviewPractice.StartInterviewResponse(
             Guid.Parse(sessionId),
@@ -112,8 +124,36 @@ public sealed class StartInterviewSessionUseCase
             null,
             null,
             firstQuestion.CoachingHint,
-            null
+            audioUrl
         );
+    }
+
+    private async Task TryGenerateTtsAsync(InterviewTurn turn, string text, CancellationToken ct)
+    {
+        try
+        {
+            var ttsResult = await _ttsService.SynthesizeAsync(
+                new TextToSpeechRequest { Text = text, Purpose = "interviewer" }, ct);
+
+            if (ttsResult.IsSuccess && ttsResult.AudioData is not null)
+            {
+                var storageResult = await _audioStorage.SaveAsync(new AudioStorageRequest
+                {
+                    SessionId = turn.SessionId,
+                    TurnId = turn.Id,
+                    Purpose = "interviewer",
+                    AudioData = ttsResult.AudioData,
+                    ContentType = ttsResult.ContentType
+                }, ct);
+
+                if (storageResult.IsSuccess)
+                    turn.MarkAudioReady(storageResult.StorageKey, ttsResult.DurationMs);
+            }
+        }
+        catch
+        {
+            // TTS failure does not block the flow
+        }
     }
 
     private static InterviewQuestionContent CreateFallbackFirstQuestion(InterviewType interviewType)
