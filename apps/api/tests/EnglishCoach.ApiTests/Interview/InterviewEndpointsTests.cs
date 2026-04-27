@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -175,6 +176,31 @@ public sealed class InterviewEndpointsTests
     }
 
     [Fact]
+    public async Task StartInterview_Uses_Local_Fake_Providers_When_OpenAi_ApiKey_Is_Empty()
+    {
+        await using var database = new SqliteConnection("Data Source=:memory:");
+        await database.OpenAsync();
+        using var factory = CreateFactoryWithoutProviderOverrides(database);
+        var client = factory.CreateClient();
+        const string learnerId = "user-interview-empty-key-1";
+        client.DefaultRequestHeaders.Add("X-User-Id", learnerId);
+        var profileId = await SeedAnalyzedProfileAsync(factory, learnerId);
+
+        var response = await client.PostAsJsonAsync(
+            "/me/interview/sessions",
+            new StartInterviewRequest(profileId, "Backend role with ASP.NET Core and React.", "Mixed"));
+
+        var payloadText = await response.Content.ReadAsStringAsync();
+        Assert.True(
+            response.IsSuccessStatusCode,
+            $"Expected success when OpenAI:ApiKey is empty, got {response.StatusCode}. Payload: {payloadText}");
+        var payload = await response.Content.ReadFromJsonAsync<StartInterviewResponse>();
+        Assert.NotNull(payload);
+        Assert.False(string.IsNullOrWhiteSpace(payload!.FirstQuestion));
+        Assert.Equal("Opening", payload.QuestionCategory);
+    }
+
+    [Fact]
     public async Task StartInterview_Uses_Fallback_When_Interview_Plan_Provider_Fails()
     {
         await using var database = new SqliteConnection("Data Source=:memory:");
@@ -294,6 +320,52 @@ public sealed class InterviewEndpointsTests
                     dbContext.Database.EnsureCreated();
                 });
             });
+    }
+
+    private static WebApplicationFactory<Program> CreateFactoryWithoutProviderOverrides(
+        SqliteConnection database)
+    {
+        return new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureAppConfiguration((_, configuration) =>
+                {
+                    configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                    {
+                        ["OpenAI:ApiKey"] = string.Empty
+                    });
+                });
+
+                builder.ConfigureTestServices(services =>
+                {
+                    services.RemoveAll(typeof(DbContextOptions<EnglishCoachDbContext>));
+                    services.AddDbContext<EnglishCoachDbContext>(options => options.UseSqlite(database));
+
+                    services.RemoveAll<ICvTextExtractor>();
+                    services.AddScoped<ICvTextExtractor>(_ => new FixedCvTextExtractor(ValidExtractedCvText));
+
+                    using var scope = services.BuildServiceProvider().CreateScope();
+                    var dbContext = scope.ServiceProvider.GetRequiredService<EnglishCoachDbContext>();
+                    dbContext.Database.EnsureCreated();
+                });
+            });
+    }
+
+    private static async Task<Guid> SeedAnalyzedProfileAsync(
+        WebApplicationFactory<Program> factory,
+        string learnerId)
+    {
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<EnglishCoachDbContext>();
+        var profileId = Guid.NewGuid();
+        var profile = InterviewProfile.Create(
+            profileId.ToString(),
+            learnerId,
+            ValidExtractedCvText);
+        profile.SetCvAnalysis("""{"name":"Seeded Learner","skills":["ASP.NET Core","React"]}""");
+        await dbContext.InterviewProfiles.AddAsync(profile);
+        await dbContext.SaveChangesAsync();
+        return profileId;
     }
 
     private static async Task<Guid> CreateAnalyzedProfileAsync(HttpClient client)

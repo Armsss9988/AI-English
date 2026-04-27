@@ -64,14 +64,27 @@ builder.Services.AddScoped<EnglishCoach.Application.Progress.RecalculateReadines
 builder.Services.AddScoped<EnglishCoach.Application.Progress.GetReadinessQuery>();
 builder.Services.AddScoped<EnglishCoach.Application.Progress.GetCapabilityMatrixQuery>();
 
-// AI Providers (NIM / OpenAI)
-builder.Services.AddScoped<EnglishCoach.Application.Ports.ISpeechTranscriptionService, EnglishCoach.Infrastructure.AI.OpenAI.NimTranscriptionService>();
-builder.Services.AddScoped<EnglishCoach.Application.Ports.ISpeakingFeedbackService, EnglishCoach.Infrastructure.AI.OpenAI.NimSpeakingFeedbackService>();
-builder.Services.AddScoped<EnglishCoach.Application.Ports.IRoleplayResponseService, EnglishCoach.Infrastructure.AI.OpenAI.NimRoleplayService>();
+var openAiApiKey = builder.Configuration["OpenAI:ApiKey"];
+if (string.IsNullOrWhiteSpace(openAiApiKey) && builder.Environment.IsDevelopment())
+{
+    // Local dev/test fallback: avoid resolving NIM clients with an empty ApiKeyCredential.
+    builder.Services.AddScoped<EnglishCoach.Application.Ports.ISpeechTranscriptionService, EnglishCoach.Infrastructure.AI.FakeAdapters.FakeTranscriptionService>();
+    builder.Services.AddScoped<EnglishCoach.Application.Ports.ISpeakingFeedbackService, EnglishCoach.Infrastructure.AI.FakeAdapters.FakeFeedbackService>();
+    builder.Services.AddScoped<EnglishCoach.Application.Ports.IRoleplayResponseService, EnglishCoach.Infrastructure.AI.FakeAdapters.FakeRoleplayService>();
+    builder.Services.AddScoped<EnglishCoach.Application.Ports.IInterviewAnalysisService, EnglishCoach.Infrastructure.AI.FakeAdapters.FakeInterviewAnalysisService>();
+    builder.Services.AddScoped<EnglishCoach.Application.Ports.IInterviewConductorService, EnglishCoach.Infrastructure.AI.FakeAdapters.FakeInterviewConductorService>();
+}
+else
+{
+    // AI Providers (NIM / OpenAI)
+    builder.Services.AddScoped<EnglishCoach.Application.Ports.ISpeechTranscriptionService, EnglishCoach.Infrastructure.AI.OpenAI.NimTranscriptionService>();
+    builder.Services.AddScoped<EnglishCoach.Application.Ports.ISpeakingFeedbackService, EnglishCoach.Infrastructure.AI.OpenAI.NimSpeakingFeedbackService>();
+    builder.Services.AddScoped<EnglishCoach.Application.Ports.IRoleplayResponseService, EnglishCoach.Infrastructure.AI.OpenAI.NimRoleplayService>();
 
-// Interview Practice AI Providers (swapped to real NIM/OpenAI adapters)
-builder.Services.AddScoped<EnglishCoach.Application.Ports.IInterviewAnalysisService, EnglishCoach.Infrastructure.AI.OpenAI.NimInterviewAnalysisService>();
-builder.Services.AddScoped<EnglishCoach.Application.Ports.IInterviewConductorService, EnglishCoach.Infrastructure.AI.OpenAI.NimInterviewConductorService>();
+    // Interview Practice AI Providers (swapped to real NIM/OpenAI adapters)
+    builder.Services.AddScoped<EnglishCoach.Application.Ports.IInterviewAnalysisService, EnglishCoach.Infrastructure.AI.OpenAI.NimInterviewAnalysisService>();
+    builder.Services.AddScoped<EnglishCoach.Application.Ports.IInterviewConductorService, EnglishCoach.Infrastructure.AI.OpenAI.NimInterviewConductorService>();
+}
 builder.Services.AddScoped<EnglishCoach.Application.Ports.ICvTextExtractor, EnglishCoach.Infrastructure.AI.Pdf.PdfCvTextExtractor>();
 
 // Interview Practice Repositories & Use Cases
