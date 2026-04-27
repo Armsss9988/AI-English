@@ -1,12 +1,15 @@
 "use client";
 
 import React, { useState } from "react";
-import { InterviewFeedbackResponse } from "@english-coach/contracts";
+import Link from "next/link";
+import type { InterviewFeedbackResponse } from "@english-coach/contracts";
 import styles from "./interview.module.css";
 
 interface InterviewFeedbackProps {
   feedback: InterviewFeedbackResponse;
   onBack: () => void;
+  sessionId?: string;
+  elapsedSeconds?: number;
 }
 
 function scoreClass(score: number): string {
@@ -15,16 +18,38 @@ function scoreClass(score: number): string {
   return styles.scoreLow;
 }
 
+function formatElapsed(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}m ${s}s`;
+}
+
 export const InterviewFeedback: React.FC<InterviewFeedbackProps> = ({
   feedback,
   onBack,
+  sessionId,
+  elapsedSeconds,
 }) => {
   const [lang, setLang] = useState<"en" | "vi">("en");
 
   return (
     <div className={styles.feedbackContainer}>
       <div className={styles.feedbackHeader}>
-        <div className={styles.feedbackTitle}>Interview Complete 🎯</div>
+        <div className={styles.feedbackTitle}>
+          Interview Complete 🎯
+          {elapsedSeconds !== undefined && elapsedSeconds > 0 && (
+            <span
+              style={{
+                marginLeft: "12px",
+                fontSize: "0.8rem",
+                fontWeight: 400,
+                color: "#94a3b8",
+              }}
+            >
+              ⏱ {formatElapsed(elapsedSeconds)}
+            </span>
+          )}
+        </div>
         <div className={styles.overallScore}>{feedback.overallScore}/100</div>
       </div>
 
@@ -108,6 +133,18 @@ export const InterviewFeedback: React.FC<InterviewFeedbackProps> = ({
         <button className={styles.secondaryBtn} onClick={onBack}>
           ← Back to Setup
         </button>
+        {sessionId && (
+          <Link
+            href={`/interview/sessions/${sessionId}`}
+            className={styles.secondaryBtn}
+            style={{ textDecoration: "none" }}
+          >
+            📋 View Details
+          </Link>
+        )}
+        <Link href="/interview/history" className={styles.secondaryBtn} style={{ textDecoration: "none" }}>
+          📂 History
+        </Link>
         <button
           className={styles.primaryBtn}
           onClick={() => window.location.reload()}

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
-import {
+import type {
   StartInterviewResponse,
   InterviewFeedbackResponse,
   AnswerQuestionResponse,
@@ -18,6 +18,7 @@ import {
   generateNextTurn,
 } from "@/lib/api/interview";
 import { InterviewFeedback } from "./InterviewFeedback";
+import { ScorecardCard } from "./ScorecardCard";
 import styles from "./interview.module.css";
 
 interface InterviewChatProps {
@@ -50,6 +51,12 @@ type VoicePhase =
   | "confirming"
   | "evaluating";
 
+function formatElapsed(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
 export const InterviewChat: React.FC<InterviewChatProps> = ({
   profileId,
   jdText,
@@ -70,13 +77,65 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
   const [editedTranscript, setEditedTranscript] = useState("");
   const [scorecardResult, setScorecardResult] = useState<unknown>(null);
   const [recordingDuration, setRecordingDuration] = useState(0);
+  const [answerError, setAnswerError] = useState<string | null>(null);
+  // Interview timer
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const recordingStartRef = useRef<number>(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const interviewTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isTraining = interviewMode === "TrainingInterview";
+
+  // ======== Interview Timer ========
+  useEffect(() => {
+    if (sessionId && !isComplete && !feedback) {
+      interviewTimerRef.current = setInterval(() => {
+        setElapsedSeconds((s) => s + 1);
+      }, 1000);
+    }
+    return () => {
+      if (interviewTimerRef.current) clearInterval(interviewTimerRef.current);
+    };
+  }, [sessionId, isComplete, feedback]);
+
+  // ======== Keyboard Shortcuts ========
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Space to toggle recording (when not typing)
+      if (
+        e.code === "Space" &&
+        !e.shiftKey &&
+        !e.ctrlKey &&
+        document.activeElement?.tagName !== "TEXTAREA" &&
+        document.activeElement?.tagName !== "INPUT"
+      ) {
+        e.preventDefault();
+        if (voicePhase === "idle") {
+          startRecording();
+        } else if (voicePhase === "recording") {
+          stopRecording();
+        }
+      }
+      // Enter to confirm transcript
+      if (e.code === "Enter" && !e.shiftKey && voicePhase === "confirming") {
+        if (document.activeElement?.tagName !== "TEXTAREA") {
+          e.preventDefault();
+          handleConfirmTranscript();
+        }
+      }
+      // Escape to cancel transcript
+      if (e.code === "Escape" && voicePhase === "confirming") {
+        handleCancelTranscript();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voicePhase]);
 
   // Start session
   const startMutation = useMutation({
@@ -105,11 +164,12 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
     },
   });
 
-  // Text-based answer (legacy compat)
+  // Text-based answer
   const answerMutation = useMutation({
     mutationFn: ({ sid, answer }: { sid: string; answer: string }) =>
       answerQuestion(sid, { answer }),
     onSuccess: (res: AnswerQuestionResponse) => {
+      setAnswerError(null);
       setAnsweredCount(res.answeredCount);
       setTotalQuestions(res.totalQuestions);
       if (res.isInterviewComplete) {
@@ -131,12 +191,19 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
         ]);
       }
     },
+    onError: (err: Error) => {
+      setAnswerError(err.message || "Failed to process your answer. Please try again.");
+    },
   });
 
   // Finalize
   const finalizeMutation = useMutation({
     mutationFn: (sid: string) => finalizeInterview(sid),
     onSuccess: (res) => setFeedback(res),
+    onError: (err: Error) => {
+      setAnswerError(`Finalization failed: ${err.message}. Try ending the interview again.`);
+      setIsComplete(false);
+    },
   });
 
   useEffect(() => {
@@ -162,6 +229,7 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
     if (!input.trim() || !sessionId) return;
     const currentInput = input;
     setInput("");
+    setAnswerError(null);
     setTurns((prev) => [...prev, {
       id: Date.now().toString(), role: "learner", content: currentInput,
     }]);
@@ -170,17 +238,32 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
 
   // ======== Voice recording ========
   const startRecording = useCallback(async () => {
+    // Check browser compatibility
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setAnswerError("Voice recording is not supported in this browser. Please type your answer instead.");
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-          ? "audio/webm;codecs=opus"
-          : "audio/webm",
-      });
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : MediaRecorder.isTypeSupported("audio/webm")
+          ? "audio/webm"
+          : "";
+
+      if (!mimeType) {
+        stream.getTracks().forEach((t) => t.stop());
+        setAnswerError("Audio recording format not supported. Please type your answer.");
+        return;
+      }
+
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
       recordingStartRef.current = Date.now();
       setRecordingDuration(0);
+      setAnswerError(null);
 
       timerRef.current = setInterval(() => {
         setRecordingDuration(Math.floor((Date.now() - recordingStartRef.current) / 1000));
@@ -194,7 +277,7 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
         stream.getTracks().forEach((t) => t.stop());
         if (timerRef.current) clearInterval(timerRef.current);
 
-        const audioBlob = new Blob(chunksRef.current, { type: "audio/webm" });
+        const audioBlob = new Blob(chunksRef.current, { type: mimeType });
         const durationMs = Date.now() - recordingStartRef.current;
 
         if (!sessionId || audioBlob.size < 100) {
@@ -208,16 +291,20 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
           setPendingTranscript(result);
           setEditedTranscript(result.rawTranscript);
           setVoicePhase("confirming");
-        } catch {
+        } catch (err) {
           setVoicePhase("idle");
-          alert("Failed to transcribe audio. Try again or type your answer.");
+          setAnswerError(
+            err instanceof Error
+              ? `Transcription failed: ${err.message}`
+              : "Failed to transcribe audio. Try again or type your answer."
+          );
         }
       };
 
-      mediaRecorder.start(500); // chunk every 500ms
+      mediaRecorder.start(500);
       setVoicePhase("recording");
     } catch {
-      alert("Could not access microphone. Please type your answer instead.");
+      setAnswerError("Could not access microphone. Please check permissions or type your answer.");
     }
   }, [sessionId]);
 
@@ -232,9 +319,9 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
     if (!sessionId || !pendingTranscript) return;
     const wasEdited = editedTranscript !== pendingTranscript.rawTranscript;
     setVoicePhase("evaluating");
+    setAnswerError(null);
 
     try {
-      // Add learner turn to UI
       setTurns((prev) => [...prev, {
         id: pendingTranscript.turnId,
         role: "learner",
@@ -244,17 +331,14 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
         turnState: "Confirmed",
       }]);
 
-      // Confirm
       await confirmTranscript(sessionId, pendingTranscript.turnId, {
         confirmedTranscript: editedTranscript,
         learnerEdited: wasEdited,
       });
 
-      // Evaluate
       const evalResult = await evaluateAnswer(sessionId, pendingTranscript.turnId);
       setScorecardResult(evalResult);
 
-      // Get next turn
       const nextTurnRes = await generateNextTurn(sessionId);
       setAnsweredCount(nextTurnRes.answeredCount);
       setTotalQuestions(nextTurnRes.totalQuestions);
@@ -274,8 +358,12 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
           audioUrl: nextTurnRes.audioUrl || undefined,
         }]);
       }
-    } catch {
-      alert("Evaluation failed. Moving to next question.");
+    } catch (err) {
+      setAnswerError(
+        err instanceof Error
+          ? `Evaluation failed: ${err.message}`
+          : "Evaluation failed. Moving to next question."
+      );
     }
 
     setPendingTranscript(null);
@@ -291,7 +379,16 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
   }, []);
 
   // ======== Render ========
-  if (feedback) return <InterviewFeedback feedback={feedback} onBack={onBack} />;
+  if (feedback) {
+    return (
+      <InterviewFeedback
+        feedback={feedback}
+        onBack={onBack}
+        sessionId={sessionId ?? undefined}
+        elapsedSeconds={elapsedSeconds}
+      />
+    );
+  }
 
   if (startMutation.isError && !sessionId) {
     const startErrorMessage = startMutation.error instanceof Error
@@ -305,6 +402,9 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
         </div>
         <div className={styles.buttonRow}>
           <button className={styles.secondaryBtn} onClick={onBack}>Back</button>
+          <button className={styles.primaryBtn} onClick={() => startMutation.mutate()}>
+            🔄 Retry
+          </button>
         </div>
       </div>
     );
@@ -342,6 +442,9 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
           </h3>
           <div className={styles.chatHeaderMeta}>
             Question {answeredCount + 1} of {totalQuestions}
+            <span style={{ marginLeft: "12px", color: "#64748b", fontFamily: "monospace" }}>
+              ⏱ {formatElapsed(elapsedSeconds)}
+            </span>
           </div>
         </div>
         <button
@@ -385,15 +488,42 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
           <div className={styles.coachingHint}>💡 Hint: {currentHint}</div>
         ) : null}
 
-        {/* Scorecard inline (Training mode only) */}
+        {/* Scorecard inline (Training mode only — visual component) */}
         {isTraining && scorecardResult ? (
-          <div className={styles.scorecardInline}>
-            <div className={styles.scorecardTitle}>📊 Answer Scorecard</div>
-            <pre className={styles.scorecardPre}>
-              {JSON.stringify(scorecardResult, null, 2)}
-            </pre>
-          </div>
+          <ScorecardCard data={scorecardResult} />
         ) : null}
+
+        {/* Error message */}
+        {answerError && (
+          <div
+            style={{
+              padding: "10px 16px",
+              background: "rgba(239, 68, 68, 0.1)",
+              border: "1px solid rgba(239, 68, 68, 0.2)",
+              borderRadius: "10px",
+              color: "#f87171",
+              fontSize: "0.82rem",
+              margin: "8px 0",
+            }}
+          >
+            ⚠️ {answerError}
+            <button
+              style={{
+                marginLeft: "8px",
+                padding: "2px 8px",
+                border: "none",
+                borderRadius: "4px",
+                background: "rgba(239, 68, 68, 0.15)",
+                color: "#f87171",
+                cursor: "pointer",
+                fontSize: "0.75rem",
+              }}
+              onClick={() => setAnswerError(null)}
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
         {/* Loading indicators */}
         {(answerMutation.isPending || voicePhase === "transcribing" || voicePhase === "evaluating") && (
@@ -426,6 +556,9 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
               onChange={(e) => setEditedTranscript(e.target.value)}
               rows={4}
             />
+            <div style={{ fontSize: "0.7rem", color: "#475569", marginBottom: "8px" }}>
+              Press <kbd style={{ padding: "1px 4px", borderRadius: "3px", background: "rgba(148,163,184,0.15)", fontSize: "0.65rem" }}>Enter</kbd> to confirm · <kbd style={{ padding: "1px 4px", borderRadius: "3px", background: "rgba(148,163,184,0.15)", fontSize: "0.65rem" }}>Esc</kbd> to discard
+            </div>
             <div className={styles.transcriptActions}>
               <button className={styles.secondaryBtn} onClick={handleCancelTranscript}>
                 ✖ Discard
@@ -450,7 +583,7 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
             onClick={voicePhase === "recording" ? stopRecording : startRecording}
             disabled={answerMutation.isPending || voicePhase === "transcribing" ||
                       voicePhase === "evaluating" || voicePhase === "confirming"}
-            title={voicePhase === "recording" ? `Recording... ${recordingDuration}s` : "Start voice input"}
+            title={voicePhase === "recording" ? `Recording... ${recordingDuration}s — click or press Space to stop` : "Start voice input (Space)"}
           >
             {voicePhase === "recording" ? `⏹ ${recordingDuration}s` : "🎤"}
           </button>
@@ -460,7 +593,7 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
             placeholder={
               voicePhase === "recording" ? `🔴 Recording... ${recordingDuration}s` :
               voicePhase === "confirming" ? "Review transcript above..." :
-              "Type or use voice to answer..."
+              "Type or use voice to answer... (Space = record)"
             }
             value={input}
             onChange={(e) => setInput(e.target.value)}
