@@ -7,3 +7,16 @@ dist
 .env*
 worktrees/
 artifacts
+
+# .NET build artifacts
+bin/
+obj/
+*.user
+*.suo
+
+# Test/scratch projects
+TestOpenAI/
+
+# Temp files
+.tmp-*
+models.json
