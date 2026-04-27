@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "dotnet:build",
+      "dotnet:test",
+      "dotnet:run",
+      "dotnet:format",
+      "dotnet:ef:*",
+      "pnpm:run",
+      "pnpm:test",
+      "pnpm:build",
+      "pnpm:lint",
+      "npm:run",
+      "npm:test",
+      "npm:build",
+      "git:commit",
+      "git:add",
+      "git:status",
+      "git:diff",
+      "git:log",
+      "git:branch",
+      "git:checkout",
+      "git:worktree:*",
+      "npx:tsc",
+      "npx:vitest"
+    ]
+  },
+  "env": {
+    "NODE_ENV": "development",
+    "ASPNETCORE_ENVIRONMENT": "Development"
+  }
+}

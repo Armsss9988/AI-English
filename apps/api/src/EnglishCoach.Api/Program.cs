@@ -111,6 +111,14 @@ var audioStoragePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "inte
 builder.Services.AddSingleton<EnglishCoach.Application.Ports.IInterviewAudioStorage>(
     new EnglishCoach.Infrastructure.Storage.LocalInterviewAudioStorage(audioStoragePath));
 
+// T05: Admin Content Use Cases
+builder.Services.AddScoped<EnglishCoach.Application.Curriculum.CreatePhraseUseCase>();
+builder.Services.AddScoped<EnglishCoach.Application.Curriculum.UpdatePhraseUseCase>();
+builder.Services.AddScoped<EnglishCoach.Application.Curriculum.PublishPhraseUseCase>();
+builder.Services.AddScoped<EnglishCoach.Application.Curriculum.CreateScenarioUseCase>();
+builder.Services.AddScoped<EnglishCoach.Application.Curriculum.UpdateScenarioUseCase>();
+builder.Services.AddScoped<EnglishCoach.Application.Curriculum.PublishScenarioUseCase>();
+
 builder.Services.AddSingleton<IClock, SystemClock>();
 
 builder.Services.AddCors(options =>
@@ -857,43 +865,129 @@ var adminGroup = app.MapGroup("/admin")
     });
 
 adminGroup.MapGet("/content/phrases", async (
-    EnglishCoachDbContext dbContext,
+    IPhraseRepository phraseRepo,
     CancellationToken cancellationToken) =>
 {
-    var phrases = await dbContext.Phrases.ToListAsync(cancellationToken);
-    var response = phrases.Select(p => new
-    {
-        id = p.Id,
-        content = p.Text,
-        meaning = p.ViMeaning,
-        category = p.CommunicationFunction.ToString(),
-        difficulty = p.Level.ToString(),
-        function = p.CommunicationFunction.ToString(),
-        status = p.State.ToString().ToLowerInvariant()
-    });
+    var phrases = await phraseRepo.GetAllAsync(cancellationToken);
+    var response = phrases.Select(p => EnglishCoach.Application.Curriculum.CreatePhraseUseCase.MapToResponse(p));
     return Results.Ok(response);
 })
 .WithName("AdminGetPhrases")
 .WithOpenApi();
 
-adminGroup.MapGet("/content/scenarios", async (
-    EnglishCoachDbContext dbContext,
+adminGroup.MapPost("/content/phrases", async (
+    EnglishCoach.Contracts.Curriculum.CreatePhraseRequest request,
+    EnglishCoach.Application.Curriculum.CreatePhraseUseCase useCase,
     CancellationToken cancellationToken) =>
 {
-    var scenarios = await dbContext.RoleplayScenarios.ToListAsync(cancellationToken);
-    var response = scenarios.Select(s => new
+    var response = await useCase.ExecuteAsync(request, cancellationToken);
+    return Results.Created($"/admin/content/phrases/{response.Id}", response);
+})
+.WithName("AdminCreatePhrase")
+.WithOpenApi();
+
+adminGroup.MapPut("/content/phrases/{phraseId}", async (
+    string phraseId,
+    EnglishCoach.Contracts.Curriculum.UpdatePhraseRequest request,
+    EnglishCoach.Application.Curriculum.UpdatePhraseUseCase useCase,
+    CancellationToken cancellationToken) =>
+{
+    try
     {
-        id = s.Id,
-        title = s.Title,
-        goal = s.CommunicationGoal,
-        category = s.WorkplaceContext,
-        difficulty = s.Difficulty switch { <= 1 => "Beginner", 2 => "Intermediate", _ => "Advanced" },
-        persona = s.ClientPersona,
-        status = s.State.ToString().ToLowerInvariant()
-    });
+        var response = await useCase.ExecuteAsync(phraseId, request, cancellationToken);
+        return Results.Ok(response);
+    }
+    catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
+    {
+        return Results.NotFound();
+    }
+})
+.WithName("AdminUpdatePhrase")
+.WithOpenApi();
+
+adminGroup.MapPost("/content/phrases/{phraseId}/publish", async (
+    string phraseId,
+    EnglishCoach.Application.Curriculum.PublishPhraseUseCase useCase,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var response = await useCase.ExecuteAsync(phraseId, cancellationToken);
+        return Results.Ok(response);
+    }
+    catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
+    {
+        return Results.NotFound();
+    }
+    catch (InvalidOperationException ex) when (ex.Message.Contains("Can only publish"))
+    {
+        return Results.Conflict(new { message = ex.Message });
+    }
+})
+.WithName("AdminPublishPhrase")
+.WithOpenApi();
+
+adminGroup.MapGet("/content/scenarios", async (
+    IRoleplayScenarioRepository scenarioRepo,
+    CancellationToken cancellationToken) =>
+{
+    var scenarios = await scenarioRepo.GetAllAsync(cancellationToken);
+    var response = scenarios.Select(s => EnglishCoach.Application.Curriculum.CreateScenarioUseCase.MapToResponse(s));
     return Results.Ok(response);
 })
 .WithName("AdminGetScenarios")
+.WithOpenApi();
+
+adminGroup.MapPost("/content/scenarios", async (
+    EnglishCoach.Contracts.Curriculum.CreateScenarioRequest request,
+    EnglishCoach.Application.Curriculum.CreateScenarioUseCase useCase,
+    CancellationToken cancellationToken) =>
+{
+    var response = await useCase.ExecuteAsync(request, cancellationToken);
+    return Results.Created($"/admin/content/scenarios/{response.Id}", response);
+})
+.WithName("AdminCreateScenario")
+.WithOpenApi();
+
+adminGroup.MapPut("/content/scenarios/{scenarioId}", async (
+    string scenarioId,
+    EnglishCoach.Contracts.Curriculum.UpdateScenarioRequest request,
+    EnglishCoach.Application.Curriculum.UpdateScenarioUseCase useCase,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var response = await useCase.ExecuteAsync(scenarioId, request, cancellationToken);
+        return Results.Ok(response);
+    }
+    catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
+    {
+        return Results.NotFound();
+    }
+})
+.WithName("AdminUpdateScenario")
+.WithOpenApi();
+
+adminGroup.MapPost("/content/scenarios/{scenarioId}/publish", async (
+    string scenarioId,
+    EnglishCoach.Application.Curriculum.PublishScenarioUseCase useCase,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var response = await useCase.ExecuteAsync(scenarioId, cancellationToken);
+        return Results.Ok(response);
+    }
+    catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
+    {
+        return Results.NotFound();
+    }
+    catch (InvalidOperationException ex) when (ex.Message.Contains("Can only publish"))
+    {
+        return Results.Conflict(new { message = ex.Message });
+    }
+})
+.WithName("AdminPublishScenario")
 .WithOpenApi();
 
 DatabaseCurriculumSeeder.SeedDatabaseAsync(app.Services).GetAwaiter().GetResult();

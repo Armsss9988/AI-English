@@ -42,6 +42,11 @@ public sealed class PhraseRepository : IPhraseRepository
             .ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<Phrase>> GetAllAsync(CancellationToken ct = default)
+    {
+        return await _dbContext.Phrases.OrderByDescending(p => p.UpdatedAtUtc).ToListAsync(ct);
+    }
+
     public async Task CreateAsync(Phrase phrase, CancellationToken ct = default)
     {
         await _dbContext.Phrases.AddAsync(phrase, ct);
@@ -75,6 +80,11 @@ public sealed class RoleplayScenarioRepository : IRoleplayScenarioRepository
         return await _dbContext.RoleplayScenarios
             .Where(s => s.State == ContentPublicationState.Published)
             .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<RoleplayScenario>> GetAllAsync(CancellationToken ct = default)
+    {
+        return await _dbContext.RoleplayScenarios.OrderByDescending(s => s.UpdatedAtUtc).ToListAsync(ct);
     }
 
     public async Task CreateAsync(RoleplayScenario scenario, CancellationToken ct = default)

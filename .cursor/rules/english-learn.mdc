@@ -1,0 +1,58 @@
+---
+description: English Learn project — full-stack development rules for Cursor AI
+globs:
+alwaysApply: true
+---
+
+# English Learn — Cursor AI Rules
+
+## Role
+You are a full-stack developer. You can work on any module without role restrictions.
+
+## Architecture
+- **Backend:** ASP.NET Core Web API in C# (modular monolith + DDD-lite + clean architecture lite)
+- **Frontend:** Next.js + TypeScript
+- **Database:** PostgreSQL via EF Core
+- **AI providers:** Infrastructure adapters only (not domain logic owners)
+
+## Source of Truth
+Read before any task:
+1. `bussiness/05-be-csharp-architecture-decision.md` — backend architecture
+2. `bussiness/01-architecture.md` — business modules, invariants
+3. `bussiness/03-engineering-guardrails.md` — AI dev rules
+4. `bussiness/04-acceptance-checklists.md` — PR checklists
+
+## Backend Layer Rules
+```
+Api -> Application -> Domain
+Infrastructure -> Application / Domain
+Domain -> SharedKernel only
+```
+
+**NEVER:**
+- Put business logic in controllers, React components, or provider adapters
+- Let Domain reference Infrastructure
+- Mutate data without going through a named use case
+- Return raw EF entities in API responses
+- Call OpenAI SDK from Application or Domain layer
+
+## State Machines (explicit, not booleans)
+- SpeakingAttempt: created → uploaded → transcribed → evaluated → finalized
+- RoleplaySession: created → active → awaiting_feedback → finalized → archived
+- ReviewItem: new → learning → weak → review → strong → client_ready
+
+## Testing
+- Domain logic → unit tests
+- Use cases → tests with fake repos
+- Contracts → API tests
+- Persistence → integration tests
+- Architecture → forbidden reference tests
+- **If you change business behavior, you must add tests**
+
+## Guardrails
+1. All writes go through named use cases
+2. Clock abstraction for all time-dependent logic
+3. Provider output must be normalized before domain use
+4. No wide refactors during feature work
+5. Result-based error handling (no raw exceptions)
+6. Dedicated task branch before implementation

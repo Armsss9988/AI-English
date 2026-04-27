@@ -121,6 +121,9 @@ public class CreateSpeakingAttemptUseCaseTests
         public Task<IReadOnlyList<Phrase>> GetAllPublishedAsync(CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<Phrase>>(_phrases.Where(p => p.IsPublished).ToList());
 
+        public Task<IReadOnlyList<Phrase>> GetAllAsync(CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<Phrase>>(_phrases.ToList());
+
         public Task CreateAsync(Phrase phrase, CancellationToken ct = default) => Task.CompletedTask;
         public Task UpdateAsync(Phrase phrase, CancellationToken ct = default) => Task.CompletedTask;
     }

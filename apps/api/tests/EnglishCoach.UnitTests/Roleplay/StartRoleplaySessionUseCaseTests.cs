@@ -103,6 +103,10 @@ public class StartRoleplaySessionUseCaseTests
             => Task.FromResult<IReadOnlyList<RoleplayScenario>>(
                 _scenario is { IsPublished: true } ? new[] { _scenario } : Array.Empty<RoleplayScenario>());
 
+        public Task<IReadOnlyList<RoleplayScenario>> GetAllAsync(CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<RoleplayScenario>>(
+                _scenario is not null ? new[] { _scenario } : Array.Empty<RoleplayScenario>());
+
         public Task CreateAsync(RoleplayScenario scenario, CancellationToken ct = default) => Task.CompletedTask;
         public Task UpdateAsync(RoleplayScenario scenario, CancellationToken ct = default) => Task.CompletedTask;
     }
