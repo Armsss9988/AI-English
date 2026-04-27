@@ -1,5 +1,27 @@
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5237";
 
+function getErrorMessage(status: number, bodyText: string): string {
+  if (!bodyText) {
+    return `API error: ${status}`;
+  }
+
+  try {
+    const errorBody = JSON.parse(bodyText) as {
+      message?: unknown;
+      detail?: unknown;
+      title?: unknown;
+    };
+
+    if (typeof errorBody.message === "string") return errorBody.message;
+    if (typeof errorBody.detail === "string") return errorBody.detail;
+    if (typeof errorBody.title === "string") return errorBody.title;
+  } catch {
+    return bodyText;
+  }
+
+  return `API error: ${status}`;
+}
+
 export async function request<T>(
   path: string,
   options: RequestInit = {}
@@ -10,21 +32,24 @@ export async function request<T>(
     ...options,
     headers: {
       "Content-Type": "application/json",
+      "X-User-Id": "00000000-0000-0000-0000-000000000001",
+      "X-User-Role": "Admin",
       ...options.headers,
     },
   });
 
+  const responseText = await response.text();
+
   if (!response.ok) {
-    const errorBody = await response.json().catch(() => ({}));
-    throw new Error(errorBody.message || `API error: ${response.status}`);
+    throw new Error(getErrorMessage(response.status, responseText));
   }
 
-  // Some endpoints might return empty body (204 No Content)
-  if (response.status === 204) {
+  // Some endpoints return an empty body.
+  if (!responseText) {
     return {} as T;
   }
 
-  return response.json();
+  return JSON.parse(responseText) as T;
 }
 
 export const apiClient = {

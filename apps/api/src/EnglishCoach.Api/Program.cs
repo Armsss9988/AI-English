@@ -8,11 +8,13 @@ using EnglishCoach.Application.Curriculum;
 using EnglishCoach.Application.ErrorNotebook;
 using EnglishCoach.Application.Roleplay;
 using EnglishCoach.Application.Speaking;
+using EnglishCoach.Application.InterviewPractice;
 using EnglishCoach.Infrastructure.Identity;
 using EnglishCoach.Infrastructure.Persistence;
 using EnglishCoach.Infrastructure.Review;
 using EnglishCoach.Infrastructure.Persistence.Repositories;
 using EnglishCoach.Infrastructure.ErrorNotebook;
+using EnglishCoach.Infrastructure.Seed;
 using EnglishCoach.SharedKernel.Time;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -66,6 +68,21 @@ builder.Services.AddScoped<EnglishCoach.Application.Progress.GetCapabilityMatrix
 builder.Services.AddScoped<EnglishCoach.Application.Ports.ISpeechTranscriptionService, EnglishCoach.Infrastructure.AI.OpenAI.NimTranscriptionService>();
 builder.Services.AddScoped<EnglishCoach.Application.Ports.ISpeakingFeedbackService, EnglishCoach.Infrastructure.AI.OpenAI.NimSpeakingFeedbackService>();
 builder.Services.AddScoped<EnglishCoach.Application.Ports.IRoleplayResponseService, EnglishCoach.Infrastructure.AI.OpenAI.NimRoleplayService>();
+
+// Interview Practice AI Providers (swapped to real NIM/OpenAI adapters)
+builder.Services.AddScoped<EnglishCoach.Application.Ports.IInterviewAnalysisService, EnglishCoach.Infrastructure.AI.OpenAI.NimInterviewAnalysisService>();
+builder.Services.AddScoped<EnglishCoach.Application.Ports.IInterviewConductorService, EnglishCoach.Infrastructure.AI.OpenAI.NimInterviewConductorService>();
+builder.Services.AddScoped<EnglishCoach.Application.Ports.ICvTextExtractor, EnglishCoach.Infrastructure.AI.Pdf.PdfCvTextExtractor>();
+
+// Interview Practice Repositories & Use Cases
+builder.Services.AddScoped<IInterviewSessionRepository, EnglishCoach.Infrastructure.Persistence.Repositories.InterviewSessionRepository>();
+builder.Services.AddScoped<IInterviewProfileRepository, EnglishCoach.Infrastructure.Persistence.Repositories.InterviewProfileRepository>();
+builder.Services.AddScoped<UploadCvUseCase>();
+builder.Services.AddScoped<GetLatestInterviewProfileQuery>();
+builder.Services.AddScoped<StartInterviewSessionUseCase>();
+builder.Services.AddScoped<AnswerInterviewQuestionUseCase>();
+builder.Services.AddScoped<FinalizeInterviewUseCase>();
+builder.Services.AddScoped<GetInterviewHistoryQuery>();
 
 builder.Services.AddSingleton<IClock, SystemClock>();
 
@@ -246,6 +263,32 @@ app.MapGet("/me/reviews/due", async (
     return Results.Ok(response);
 })
 .WithName("GetDueReviewItems")
+.WithOpenApi();
+
+app.MapPost("/me/reviews/ensure", async (
+    HttpContext httpContext,
+    EnsureReviewItemRequest request,
+    EnsureReviewItemExistsUseCase useCase,
+    CancellationToken cancellationToken) =>
+{
+    var userId = RequireUserId(httpContext);
+
+    if (userId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    try
+    {
+        var response = await useCase.ExecuteAsync(request with { UserId = userId }, cancellationToken);
+        return Results.Ok(response);
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.BadRequest(new { message = exception.Message });
+    }
+})
+.WithName("EnsureReviewItem")
 .WithOpenApi();
 
 app.MapPost("/me/reviews/{reviewItemId}/complete", async (
@@ -469,6 +512,196 @@ app.MapPost("/me/error-notebook/promote", async (
 .WithName("PromoteErrorPattern")
 .WithOpenApi();
 
+// ── Interview Practice ──
+
+const long MaxCvPdfBytes = 5 * 1024 * 1024;
+const int MinExtractedCvCharacters = 50;
+
+app.MapGet("/me/interview/profile/latest", async (
+    HttpContext httpContext,
+    GetLatestInterviewProfileQuery query,
+    CancellationToken cancellationToken) =>
+{
+    var userId = RequireUserId(httpContext);
+    if (userId is null) return Results.Unauthorized();
+
+    var response = await query.ExecuteAsync(userId, cancellationToken);
+    return response is null ? Results.NotFound() : Results.Ok(response);
+})
+.WithName("GetLatestInterviewProfile")
+.WithOpenApi();
+
+app.MapPost("/me/interview/upload-cv", async (
+    HttpContext httpContext,
+    EnglishCoach.Contracts.InterviewPractice.UploadCvRequest request,
+    UploadCvUseCase useCase,
+    CancellationToken cancellationToken) =>
+{
+    var userId = RequireUserId(httpContext);
+    if (userId is null) return Results.Unauthorized();
+
+    try
+    {
+        var response = await useCase.ExecuteAsync(userId, request.CvText, cancellationToken);
+        return Results.Ok(response);
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.BadRequest(new { message = exception.Message });
+    }
+    catch (InvalidOperationException exception) when (
+        exception.Message.Contains("Failed to analyze CV", StringComparison.OrdinalIgnoreCase))
+    {
+        return Results.Problem(
+            title: "CV analysis failed",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status502BadGateway);
+    }
+})
+.WithName("UploadCv")
+.WithOpenApi();
+
+app.MapPost("/me/interview/upload-cv-file", async (
+    HttpContext httpContext,
+    EnglishCoach.Application.Ports.ICvTextExtractor textExtractor,
+    UploadCvUseCase useCase,
+    CancellationToken cancellationToken) =>
+{
+    var userId = RequireUserId(httpContext);
+    if (userId is null) return Results.Unauthorized();
+
+    if (!httpContext.Request.HasFormContentType)
+    {
+        return Results.BadRequest(new { message = "CV PDF file is required." });
+    }
+
+    IFormCollection form;
+    try
+    {
+        form = await httpContext.Request.ReadFormAsync(cancellationToken);
+    }
+    catch (InvalidDataException)
+    {
+        return Results.BadRequest(new { message = "CV PDF file is required." });
+    }
+
+    var file = form.Files.GetFile("file");
+
+    if (file is null || file.Length == 0)
+    {
+        return Results.BadRequest(new { message = "CV PDF file is required." });
+    }
+
+    if (file.Length > MaxCvPdfBytes)
+    {
+        return Results.BadRequest(new { message = "CV PDF file is too large. Maximum size is 5 MB." });
+    }
+
+    if (!Path.GetExtension(file.FileName).Equals(".pdf", StringComparison.OrdinalIgnoreCase) ||
+        !file.ContentType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase))
+    {
+        return Results.BadRequest(new { message = "Only PDF CV files are supported." });
+    }
+
+    try
+    {
+        await using var stream = file.OpenReadStream();
+        var cvText = await textExtractor.ExtractTextAsync(stream, cancellationToken);
+
+        if (string.IsNullOrWhiteSpace(cvText) || cvText.Trim().Length < MinExtractedCvCharacters)
+        {
+            return Results.BadRequest(new { message = "Could not extract readable text from this PDF. Please paste your CV text instead." });
+        }
+
+        var response = await useCase.ExecuteAsync(userId, cvText, cancellationToken);
+        return Results.Ok(response);
+    }
+    catch (InvalidDataException exception)
+    {
+        return Results.BadRequest(new { message = exception.Message });
+    }
+    catch (InvalidOperationException exception) when (
+        exception.Message.Contains("Failed to analyze CV", StringComparison.OrdinalIgnoreCase))
+    {
+        return Results.Problem(
+            title: "CV analysis failed",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status502BadGateway);
+    }
+})
+.WithName("UploadCvFile")
+.WithOpenApi();
+
+app.MapPost("/me/interview/sessions", async (
+    HttpContext httpContext,
+    EnglishCoach.Contracts.InterviewPractice.StartInterviewRequest request,
+    StartInterviewSessionUseCase useCase,
+    CancellationToken cancellationToken) =>
+{
+    var userId = RequireUserId(httpContext);
+    if (userId is null) return Results.Unauthorized();
+
+    try
+    {
+        var response = await useCase.ExecuteAsync(userId, request, cancellationToken);
+        return Results.Ok(response);
+    }
+    catch (InvalidOperationException exception) when (IsInterviewProviderFailure(exception))
+    {
+        return Results.Problem(
+            title: "Interview setup failed",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status502BadGateway);
+    }
+})
+.WithName("StartInterview")
+.WithOpenApi();
+
+app.MapPost("/me/interview/sessions/{sessionId}/answer", async (
+    HttpContext httpContext,
+    Guid sessionId,
+    EnglishCoach.Contracts.InterviewPractice.AnswerQuestionRequest request,
+    AnswerInterviewQuestionUseCase useCase,
+    CancellationToken cancellationToken) =>
+{
+    var userId = RequireUserId(httpContext);
+    if (userId is null) return Results.Unauthorized();
+
+    var response = await useCase.ExecuteAsync(userId, sessionId, request, cancellationToken);
+    return Results.Ok(response);
+})
+.WithName("AnswerInterviewQuestion")
+.WithOpenApi();
+
+app.MapPost("/me/interview/sessions/{sessionId}/finalize", async (
+    HttpContext httpContext,
+    Guid sessionId,
+    FinalizeInterviewUseCase useCase,
+    CancellationToken cancellationToken) =>
+{
+    var userId = RequireUserId(httpContext);
+    if (userId is null) return Results.Unauthorized();
+
+    var response = await useCase.ExecuteAsync(userId, sessionId, cancellationToken);
+    return Results.Ok(response);
+})
+.WithName("FinalizeInterview")
+.WithOpenApi();
+
+app.MapGet("/me/interview/sessions", async (
+    HttpContext httpContext,
+    GetInterviewHistoryQuery query,
+    CancellationToken cancellationToken) =>
+{
+    var userId = RequireUserId(httpContext);
+    if (userId is null) return Results.Unauthorized();
+
+    var response = await query.ExecuteAsync(userId, cancellationToken);
+    return Results.Ok(response);
+})
+.WithName("GetInterviewHistory")
+.WithOpenApi();
+
 var adminGroup = app.MapGroup("/admin")
     .AddEndpointFilter(async (invocationContext, next) =>
     {
@@ -521,50 +754,7 @@ adminGroup.MapGet("/content/scenarios", async (
 .WithName("AdminGetScenarios")
 .WithOpenApi();
 
-using (var scope = app.Services.CreateScope())
-{
-    var dbContext = scope.ServiceProvider.GetRequiredService<EnglishCoach.Infrastructure.Persistence.EnglishCoachDbContext>();
-    
-    // Seed phrase if missing
-    var phraseId = "11111111-1111-1111-1111-111111111111";
-    if (!dbContext.Phrases.Any(p => p.Id == phraseId))
-    {
-        var phrase = EnglishCoach.Domain.Curriculum.Phrase.Create(
-            phraseId,
-            "Let's touch base on this.",
-            "Discuss this topic together.",
-            EnglishCoach.Domain.Curriculum.CommunicationFunction.Standup,
-            EnglishCoach.Domain.Curriculum.ContentLevel.Core,
-            "Let's touch base on this project next week."
-        );
-        phrase.SubmitForReview();
-        phrase.Publish();
-        dbContext.Phrases.Add(phrase);
-    }
-
-    // Seed scenario if missing
-    var scenarioId = "22222222-2222-2222-2222-222222222222";
-    if (!dbContext.RoleplayScenarios.Any(s => s.Id == scenarioId))
-    {
-        var scenario = EnglishCoach.Domain.Curriculum.RoleplayScenario.Create(
-            scenarioId,
-            "Client Interview",
-            "Introduce a project and clarify expectations.",
-            "Developer",
-            "Client stakeholder",
-            "Introduce a project and clarify expectations.",
-            new[] { "Greeting", "Project Timeline" },
-            new[] { phraseId },
-            new[] { "Polite greeting", "Clear explanation" },
-            3
-        );
-        scenario.SubmitForReview();
-        scenario.Publish();
-        dbContext.RoleplayScenarios.Add(scenario);
-    }
-    
-    dbContext.SaveChanges();
-}
+DatabaseCurriculumSeeder.SeedDatabaseAsync(app.Services).GetAwaiter().GetResult();
 
 app.Run();
 
@@ -579,6 +769,13 @@ static string? RequireUserId(HttpContext httpContext)
     
     // For local UI testing without real auth, return a default mock user ID
     return "00000000-0000-0000-0000-000000000001";
+}
+
+static bool IsInterviewProviderFailure(InvalidOperationException exception)
+{
+    return exception.Message.Contains("Failed to analyze JD", StringComparison.OrdinalIgnoreCase) ||
+        exception.Message.Contains("Failed to create interview plan", StringComparison.OrdinalIgnoreCase) ||
+        exception.Message.Contains("Failed to generate first question", StringComparison.OrdinalIgnoreCase);
 }
 
 static Dictionary<string, string[]> ValidateRequest<T>(T request)

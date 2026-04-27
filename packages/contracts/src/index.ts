@@ -7,3 +7,4 @@ export * from "./roleplay";
 export * from "./notebook";
 export * from "./progress";
 export * from "./admin";
+export * from "./interview";

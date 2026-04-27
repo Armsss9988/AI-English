@@ -21,14 +21,34 @@ public class CurriculumSeeder
 
     public async Task SeedAsync(CancellationToken ct = default)
     {
-        if (await _db.Phrases.AnyAsync(ct))
-            return; // Already seeded
+        var existingPhraseTexts = await _db.Phrases
+            .Select(phrase => phrase.Text)
+            .ToListAsync(ct);
+        var existingScenarioTitles = await _db.RoleplayScenarios
+            .Select(scenario => scenario.Title)
+            .ToListAsync(ct);
 
-        var phrases = GetSeedPhrases();
-        var scenarios = GetSeedScenarios();
+        var phrasesToAdd = GetSeedPhrases()
+            .Where(phrase => !existingPhraseTexts.Contains(phrase.Text, StringComparer.Ordinal))
+            .ToList();
+        var scenariosToAdd = GetSeedScenarios()
+            .Where(scenario => !existingScenarioTitles.Contains(scenario.Title, StringComparer.Ordinal))
+            .ToList();
 
-        _db.Phrases.AddRange(phrases);
-        _db.RoleplayScenarios.AddRange(scenarios);
+        if (phrasesToAdd.Count == 0 && scenariosToAdd.Count == 0)
+        {
+            return;
+        }
+
+        if (phrasesToAdd.Count > 0)
+        {
+            _db.Phrases.AddRange(phrasesToAdd);
+        }
+
+        if (scenariosToAdd.Count > 0)
+        {
+            _db.RoleplayScenarios.AddRange(scenariosToAdd);
+        }
 
         await _db.SaveChangesAsync(ct);
     }
@@ -98,9 +118,15 @@ public class CurriculumSeeder
             ("My recommendation is to break this into smaller PRs.", "Đề xuất của tôi là chia nhỏ thành các PR nhỏ hơn.", CommunicationFunction.Recommendation, "Process suggestion"),
         };
 
-        return items.Select(p => Phrase.Create(
-            Guid.NewGuid().ToString("N"),
-            p.Text, p.Vi, p.Fn, ContentLevel.Core, p.Example)).ToList();
+        return items.Select(p =>
+        {
+            var phrase = Phrase.Create(
+                Guid.NewGuid().ToString("N"),
+                p.Text, p.Vi, p.Fn, ContentLevel.Core, p.Example);
+            phrase.SubmitForReview();
+            phrase.Publish();
+            return phrase;
+        }).ToList();
     }
 
     public static IReadOnlyList<RoleplayScenario> GetSeedScenarios()
@@ -158,10 +184,16 @@ public class CurriculumSeeder
                 new[] { "decision", "alternatives considered", "rationale" }, new[] { "clear_rationale" }, 3),
         };
 
-        return items.Select(s => RoleplayScenario.Create(
-            Guid.NewGuid().ToString("N"),
-            s.Title, s.Context, s.UserRole, s.Persona, s.Goal,
-            s.MustCover, Array.Empty<string>(), s.Criteria, s.Difficulty)).ToList();
+        return items.Select(s =>
+        {
+            var scenario = RoleplayScenario.Create(
+                Guid.NewGuid().ToString("N"),
+                s.Title, s.Context, s.UserRole, s.Persona, s.Goal,
+                s.MustCover, Array.Empty<string>(), s.Criteria, s.Difficulty);
+            scenario.SubmitForReview();
+            scenario.Publish();
+            return scenario;
+        }).ToList();
     }
 }
 

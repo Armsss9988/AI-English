@@ -6,6 +6,7 @@ using EnglishCoach.Domain.ErrorNotebook;
 using EnglishCoach.Domain.Roleplay;
 using EnglishCoach.Domain.Speaking;
 using EnglishCoach.Domain.Progress;
+using EnglishCoach.Domain.InterviewPractice;
 
 namespace EnglishCoach.Infrastructure.Persistence;
 
@@ -26,6 +27,9 @@ public sealed class EnglishCoachDbContext : DbContext
     public DbSet<RoleplayTurn> RoleplayTurns => Set<RoleplayTurn>();
     public DbSet<SpeakingAttempt> SpeakingAttempts => Set<SpeakingAttempt>();
     public DbSet<ReadinessSnapshotEntity> ReadinessSnapshots => Set<ReadinessSnapshotEntity>();
+    public DbSet<InterviewProfile> InterviewProfiles => Set<InterviewProfile>();
+    public DbSet<InterviewSession> InterviewSessions => Set<InterviewSession>();
+    public DbSet<InterviewTurn> InterviewTurns => Set<InterviewTurn>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
